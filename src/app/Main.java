@@ -3,12 +3,14 @@ package app;
 import app.screens.LandingPageScreen;
 import app.screens.SinglePlayerScreen;
 import app.screens.MultiplayerScreen;
+import app.screens.GamePlayScreen;
 import javafx.application.Application;
 import javafx.stage.Stage;
 
 public class Main extends Application {
 
     private Stage window;
+    private javafx.scene.Scene mainScene;
     
     // Screen instances
     private LandingPageScreen landingPage;
@@ -25,23 +27,33 @@ public class Main extends Application {
         singlePlayer = new SinglePlayerScreen(this);
         multiplayer = new MultiplayerScreen(this);
 
+        mainScene = new javafx.scene.Scene(new javafx.scene.layout.Pane(), 1024, 768);
+        window.setScene(mainScene);
+
         // Start on the Landing Page
         showLandingPage();
         
+        window.setMaximized(true);
         window.show();
     }
 
     // Methods to switch screens
     public void showLandingPage() {
-        window.setScene(landingPage.getScene());
+        mainScene.setRoot(landingPage.getRoot());
     }
 
     public void showSinglePlayer() {
-        window.setScene(singlePlayer.getScene());
+        mainScene.setRoot(singlePlayer.getRoot());
     }
 
     public void showMultiplayer() {
-        window.setScene(multiplayer.getScene());
+        mainScene.setRoot(multiplayer.getRoot());
+    }
+    
+    public void showGamePlay() {
+        GamePlayScreen gamePlayScreen = new GamePlayScreen(this);
+        mainScene.setRoot(gamePlayScreen.getRoot());
+        gamePlayScreen.getRoot().requestFocus();
     }
     
     public void exitGame() {

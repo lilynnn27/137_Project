@@ -3,13 +3,13 @@ package app.screens;
 import app.Main;
 import app.utils.UIUtils;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
+
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 
 public class LandingPageScreen {
-    private Scene scene;
+    private VBox root;
 
     public LandingPageScreen(Main mainApp) {
         Label titleLabel = new Label("PROJECT 137");
@@ -35,10 +35,10 @@ public class LandingPageScreen {
         menuLayout.setStyle(UIUtils.BG_STYLE);
         menuLayout.getChildren().addAll(titleLabel, subtitleLabel, btnSinglePlayer, btnMultiplayer, btnExit);
         
-        this.scene = new Scene(menuLayout, 1024, 768);
+        this.root = menuLayout;
     }
 
-    public Scene getScene() {
-        return scene;
+    public javafx.scene.Parent getRoot() {
+        return root;
     }
 }
