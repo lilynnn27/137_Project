@@ -51,4 +51,9 @@ public class TerritoryManager {
     double x = Math.round((rawX - xOffset) / hexW) * hexW + xOffset;
     return new Point2D(x, y);
   }
+
+  // Clears all territory when the player is eliminated
+  public void clearTerritory() {
+    ownedTiles.clear();
+  }
 }

@@ -256,6 +256,7 @@ public class GamePlayScreen {
         territoryManager.claimTile(playerX, playerY);
         ownedHexCount = territoryManager.getOwnedHexCount();
 
+        // ============================================== //
         // TRAIL LOGIC
         // draws the trail and setting the initial inside territory into false
         trailManager.updateTrail(playerX, playerY, false);
@@ -276,7 +277,15 @@ public class GamePlayScreen {
             System.out.println("BOOM! You hit your own dough!");
 
             trailManager.updateTrail(playerX, playerY, true);
+
+            territoryManager.clearTerritory();
+            ownedHexCount = 0;
+
+            playerX = 0;
+            playerY = 0;
         }
+
+        // ============================================== //
 
         // CAMERA LOGIC
         world.setTranslateX((screenWidth / 2) - playerX);
