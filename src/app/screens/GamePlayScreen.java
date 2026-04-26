@@ -1,6 +1,7 @@
 package app.screens;
 
 import app.Main;
+import app.game_logic.TrailManager;
 import javafx.animation.AnimationTimer;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -17,6 +18,9 @@ public class GamePlayScreen {
     private Pane root;
     private Pane world;
     private Main mainApp;
+    private app.game_logic.TrailManager trailManager; // for trail system
+    private javafx.scene.canvas.Canvas trailCanvas; // for trail system canvas
+    private javafx.scene.canvas.GraphicsContext trailGc;
 
     // Game state (World coordinates)
     private ImageView playerSprite;
@@ -109,6 +113,14 @@ public class GamePlayScreen {
         Circle clip = new Circle(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS);
         hexCanvas.setClip(clip);
         world.getChildren().add(hexCanvas);
+
+        // setting up the trailing canvas
+        trailManager = new TrailManager();
+        trailCanvas = new javafx.scene.canvas.Canvas(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
+        trailCanvas.setTranslateX(-WORLD_RADIUS);
+        trailCanvas.setTranslateY(-WORLD_RADIUS);
+        trailGc = trailCanvas.getGraphicsContext2D();
+        world.getChildren().add(trailCanvas);
 
         // Setup Player Sprite
         File playerFile = new File("assets/images/PlayersDough/orange.png");
@@ -228,6 +240,26 @@ public class GamePlayScreen {
         // Apply updated coordinates
         playerSprite.setX(playerX - 30);
         playerSprite.setY(playerY - 30);
+
+        // TRAIL LOGIC
+        // draws the trail and setting the initial inside territory into false
+        trailManager.updateTrail(playerX, playerY, false);
+
+        trailGc.clearRect(0, 0, trailCanvas.getWidth(), trailCanvas.getHeight());
+
+        // shift the canvas drawing origin to the world center
+        trailGc.save();
+        trailGc.translate(WORLD_RADIUS, WORLD_RADIUS);
+
+        trailManager.drawDebugTrail(trailGc, Color.web("#9370DB"));
+
+        trailGc.restore(); // put the origin back so clearRect works next frame
+
+        if (trailManager.checkSelfCollision(playerX, playerY)) {
+            System.out.println("BOOM! You hit your own dough!");
+
+            trailManager.updateTrail(playerX, playerY, true);
+        }
 
         // CAMERA LOGIC
         world.setTranslateX((screenWidth / 2) - playerX);
