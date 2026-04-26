@@ -1,0 +1,17 @@
+# Compiled output
+*.class
+bin/
+target/
+
+# Maven local files
+apache-maven-3.9.6/
+
+# JavaFX SDK (if anyone puts it in project folder)
+javafx-sdk*/
+
+# VS Code personal settings
+.vscode/settings.json
+
+# OS files
+.DS_Store
+Thumbs.db

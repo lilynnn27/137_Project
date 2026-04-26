@@ -1,0 +1,217 @@
+2026-04-26T03:20:12.871Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-04-26T03:20:12.873Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "precheckCompleted",
+  "phase": "precheck",
+  "status": "succeeded"
+}}).
+2026-04-26T03:20:12.874Z [INFO] [Tool.invoke] do invoke.
+2026-04-26T03:20:12.885Z [INFO] Project c:\Users\tiamz\OneDrive\Desktop\CMSC 137\137_Project is a maven project, try to get java version from pom.xml
+2026-04-26T03:20:12.889Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'precheckCompleted' reported!\nSession ID: 20260426032012,\nSession Dir: c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\.github\\java-upgrade\\20260426032012"
+}}).
+2026-04-26T03:20:12.893Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-04-26T03:20:12.898Z [INFO] Project java version: 17
+2026-04-26T03:20:12.902Z [INFO] Maven project detected.
+2026-04-26T03:20:12.903Z [INFO] Build tool type: mvn
+2026-04-26T03:20:15.202Z [INFO] JDK: {
+  "name": "java",
+  "path": "C:\\Program Files\\Java\\jdk-17\\bin",
+  "version": "17"
+}
+2026-04-26T03:20:15.212Z [INFO] Build tool: undefined
+2026-04-26T03:20:15.213Z [ERROR] Failed to detect or resolve build tool for the project at c:\Users\tiamz\OneDrive\Desktop\CMSC 137\137_Project.
+2026-04-26T03:20:15.214Z [WARN] [ReportEventTool] Full project info unavailable, attempting lightweight fallback: UserError: Failed to detect or resolve build tool for the project at c:\Users\tiamz\OneDrive\Desktop\CMSC 137\137_Project. Please ensure the build tool Maven is installed and properly configured on the machine.
+2026-04-26T03:20:15.261Z [INFO] Maven project detected.
+2026-04-26T03:20:15.262Z [INFO] Project c:\Users\tiamz\OneDrive\Desktop\CMSC 137\137_Project is a maven project, try to get java version from pom.xml
+2026-04-26T03:20:19.301Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-04-26T03:20:19.301Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "planGenerationStarted",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-04-26T03:20:19.302Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-04-26T03:20:19.303Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-04-26T03:20:19.304Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-04-26T03:20:19.439Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-04-26T03:20:19.440Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "planGenerationStarted",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-04-26T03:20:19.441Z [INFO] [Tool.invoke] do invoke.
+2026-04-26T03:20:19.443Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'planGenerationStarted' reported!\nSession ID: 20260426032012,\nSession Dir: c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\.github\\java-upgrade\\20260426032012"
+}}).
+2026-04-26T03:20:19.444Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-04-26T03:20:20.361Z [INFO] ---------------------prepare appmod-list-jdks----------------------
+2026-04-26T03:20:20.361Z [INFO] [Tool.prepareInvocation]({name: appmod-list-jdks, input: {
+  "sessionId": "20260426032012"
+}}).
+2026-04-26T03:20:20.363Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-04-26T03:20:20.364Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "List jdks"
+}}).
+2026-04-26T03:20:20.365Z [INFO] ----------------------prepared appmod-list-jdks----------------------
+2026-04-26T03:20:20.487Z [INFO] ----------------------invoke appmod-list-jdks----------------------
+2026-04-26T03:20:20.488Z [INFO] [Tool.invoke]({name: appmod-list-jdks, modelId: auto, input: {
+  "sessionId": "20260426032012"
+}}).
+2026-04-26T03:20:20.489Z [INFO] [Tool.invoke] do invoke.
+2026-04-26T03:20:20.529Z [INFO] [Tool.invoke]({result: {
+  "message": "We found following jdks in your system:\n\n1. Java 17.0.12\n   📁 Path: C:\\Program Files\\Java\\jdk-17\\bin\n   🏷️ Source: others\n\n2. Java 21.0.5\n   📁 Path: C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.5.11-hotspot\\bin\n   🏷️ Source: PATH,JAVA_HOME\n\n3. Java 21.0.4\n   📁 Path: C:\\Users\\tiamz\\AppData\\Local\\Programs\\Eclipse Adoptium\\jdk-21.0.4.7-hotspot\\bin\n   🏷️ Source: PATH\n\nTotal: 3 JDK installation(s) found"
+}}).
+2026-04-26T03:20:20.530Z [INFO] ----------------------invoked appmod-list-jdks----------------------
+2026-04-26T03:20:20.561Z [INFO] ---------------------prepare appmod-list-mavens----------------------
+2026-04-26T03:20:20.562Z [INFO] [Tool.prepareInvocation]({name: appmod-list-mavens, input: {
+  "sessionId": "20260426032012",
+  "includeVersion": true
+}}).
+2026-04-26T03:20:20.563Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-04-26T03:20:20.564Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "List mavens"
+}}).
+2026-04-26T03:20:20.565Z [INFO] ----------------------prepared appmod-list-mavens----------------------
+2026-04-26T03:20:20.674Z [INFO] ----------------------invoke appmod-list-mavens----------------------
+2026-04-26T03:20:20.674Z [INFO] [Tool.invoke]({name: appmod-list-mavens, modelId: auto, input: {
+  "sessionId": "20260426032012",
+  "includeVersion": true
+}}).
+2026-04-26T03:20:20.675Z [INFO] [Tool.invoke] do invoke.
+2026-04-26T03:20:20.684Z [INFO] [Tool.invoke]({result: {
+  "message": "No Maven installations found."
+}}).
+2026-04-26T03:20:20.684Z [INFO] ----------------------invoked appmod-list-mavens----------------------
+2026-04-26T03:23:00.272Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-04-26T03:23:00.272Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "planReviewed",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-04-26T03:23:00.273Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-04-26T03:23:00.273Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-04-26T03:23:00.274Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-04-26T03:23:00.335Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-04-26T03:23:00.335Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "planReviewed",
+  "phase": "plan",
+  "status": "succeeded"
+}}).
+2026-04-26T03:23:00.336Z [INFO] [Tool.invoke] do invoke.
+2026-04-26T03:23:00.337Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'planReviewed' reported!\nSession ID: 20260426032012,\nSession Dir: c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\.github\\java-upgrade\\20260426032012"
+}}).
+2026-04-26T03:23:00.337Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-04-26T03:23:02.748Z [INFO] ---------------------prepare appmod-confirm-upgrade-plan----------------------
+2026-04-26T03:23:02.749Z [INFO] [Tool.prepareInvocation]({name: appmod-confirm-upgrade-plan, input: {
+  "sessionId": "20260426032012"
+}}).
+2026-04-26T03:23:02.750Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-04-26T03:23:02.751Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Review [upgrade plan](file:///c:/Users/tiamz/OneDrive/Desktop/CMSC 137/137_Project/.github/java-upgrade/20260426032012/plan.md)",
+  "confirmationMessages": {
+    "title": "Plan generated",
+    "message": "Please review the generated plan and make any necessary adjustments before proceeding. You can modify the generated [`plan.md`](file:///c:/Users/tiamz/OneDrive/Desktop/CMSC 137/137_Project/.github/java-upgrade/20260426032012/plan.md) directly."
+  }
+}}).
+2026-04-26T03:23:02.752Z [INFO] ----------------------prepared appmod-confirm-upgrade-plan----------------------
+2026-04-26T03:28:35.919Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-04-26T03:28:35.920Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "planExecutionStarted",
+  "phase": "execute",
+  "status": "succeeded"
+}}).
+2026-04-26T03:28:35.921Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-04-26T03:28:35.922Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-04-26T03:28:35.922Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-04-26T03:28:36.008Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-04-26T03:28:36.008Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "planExecutionStarted",
+  "phase": "execute",
+  "status": "succeeded"
+}}).
+2026-04-26T03:28:36.009Z [INFO] [Tool.invoke] do invoke.
+2026-04-26T03:28:36.126Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'planExecutionStarted' reported!\nSession ID: 20260426032012,\nSession Dir: c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\.github\\java-upgrade\\20260426032012"
+}}).
+2026-04-26T03:28:36.127Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-04-26T03:29:25.349Z [INFO] ---------------------prepare appmod-report-event----------------------
+2026-04-26T03:29:25.350Z [INFO] [Tool.prepareInvocation]({name: appmod-report-event, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "environmentSetup",
+  "phase": "execute",
+  "status": "succeeded",
+  "details": {
+    "jdkPath": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.5.11-hotspot\\bin",
+    "buildToolPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\apache-maven-3.9.6\\bin\\mvn.cmd"
+  }
+}}).
+2026-04-26T03:29:25.350Z [INFO] [Tool.prepareInvocation] do prepare invocation.
+2026-04-26T03:29:25.352Z [INFO] [Tool.prepareInvocation]({result: {
+  "invocationMessage": "Report upgrade event"
+}}).
+2026-04-26T03:29:25.353Z [INFO] ----------------------prepared appmod-report-event----------------------
+2026-04-26T03:29:25.475Z [INFO] ----------------------invoke appmod-report-event----------------------
+2026-04-26T03:29:25.476Z [INFO] [Tool.invoke]({name: appmod-report-event, modelId: auto, input: {
+  "sessionId": "20260426032012",
+  "projectPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project",
+  "event": "environmentSetup",
+  "phase": "execute",
+  "status": "succeeded",
+  "details": {
+    "jdkPath": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.5.11-hotspot\\bin",
+    "buildToolPath": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\apache-maven-3.9.6\\bin\\mvn.cmd"
+  }
+}}).
+2026-04-26T03:29:25.477Z [INFO] [Tool.invoke] do invoke.
+2026-04-26T03:29:25.479Z [INFO] Project c:\Users\tiamz\OneDrive\Desktop\CMSC 137\137_Project is a maven project, try to get java version from pom.xml
+2026-04-26T03:29:25.482Z [INFO] [Tool.invoke]({result: {
+  "message": "Event 'environmentSetup' reported!\nSession ID: 20260426032012,\nSession Dir: c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\.github\\java-upgrade\\20260426032012"
+}}).
+2026-04-26T03:29:25.482Z [INFO] ----------------------invoked appmod-report-event----------------------
+2026-04-26T03:29:25.485Z [INFO] Project java version: 17
+2026-04-26T03:29:25.487Z [INFO] Maven project detected.
+2026-04-26T03:29:25.488Z [INFO] Build tool type: mvn
+2026-04-26T03:29:25.489Z [INFO] JDK: {
+  "name": "java",
+  "path": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.5.11-hotspot\\bin",
+  "version": "17"
+}
+2026-04-26T03:29:25.490Z [INFO] Build tool: {
+  "name": "mvn",
+  "path": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\apache-maven-3.9.6\\bin\\mvn.cmd\\bin",
+  "version": ""
+}
+2026-04-26T03:29:25.491Z [INFO] Project config: {
+  "buildTool": {
+    "path": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project\\apache-maven-3.9.6\\bin\\mvn.cmd\\bin",
+    "name": "mvn",
+    "version": ""
+  },
+  "jdk": {
+    "path": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.5.11-hotspot\\bin",
+    "name": "java",
+    "version": "17"
+  },
+  "name": "137_Project",
+  "dir": "c:\\Users\\tiamz\\OneDrive\\Desktop\\CMSC 137\\137_Project"
+}
