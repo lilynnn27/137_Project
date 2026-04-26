@@ -3,14 +3,14 @@ package app.screens;
 import app.Main;
 import app.utils.UIUtils;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
+
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 
 public class MultiplayerScreen {
-    private Scene scene;
+    private VBox root;
 
     public MultiplayerScreen(Main mainApp) {
         Label mpTitle = new Label("Multiplayer Mode");
@@ -29,10 +29,10 @@ public class MultiplayerScreen {
         mpLayout.setStyle(UIUtils.BG_STYLE);
         mpLayout.getChildren().addAll(mpTitle, mpDesc, btnBackMP);
         
-        this.scene = new Scene(mpLayout, 1024, 768);
+        this.root = mpLayout;
     }
 
-    public Scene getScene() {
-        return scene;
+    public javafx.scene.Parent getRoot() {
+        return root;
     }
 }
