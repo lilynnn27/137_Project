@@ -1,6 +1,7 @@
 package app.screens;
 
 import app.Main;
+import app.game_logic.TerritoryManager;
 import app.game_logic.TrailManager;
 import javafx.animation.AnimationTimer;
 import javafx.scene.control.Label;
@@ -19,6 +20,7 @@ public class GamePlayScreen {
     private Pane world;
     private Main mainApp;
     private app.game_logic.TrailManager trailManager; // for trail system
+    private app.game_logic.TerritoryManager territoryManager;
     private javafx.scene.canvas.Canvas trailCanvas; // for trail system canvas
     private javafx.scene.canvas.GraphicsContext trailGc;
 
@@ -116,6 +118,7 @@ public class GamePlayScreen {
 
         // setting up the trailing canvas
         trailManager = new TrailManager();
+        territoryManager = new TerritoryManager();
         trailCanvas = new javafx.scene.canvas.Canvas(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
         trailCanvas.setTranslateX(-WORLD_RADIUS);
         trailCanvas.setTranslateY(-WORLD_RADIUS);
@@ -177,9 +180,14 @@ public class GamePlayScreen {
                 rightPressed = true;
             if (e.getCode() == KeyCode.ESCAPE)
                 mainApp.showLandingPage();
-            if (e.getCode() == KeyCode.T) {
-                ownedHexCount += 50;
-            }
+
+            // if (e.getCode() == KeyCode.T) {
+            // ownedHexCount += 50;
+
+            // if (e.getCode() == KeyCode.C) {
+            // territoryManager.claimTile(playerX, playerY);
+            // ownedHexCount = territoryManager.getOwnedHexCount();
+            // }
 
             // Debug: Press SPACE to test power-up bar visually
             if (e.getCode() == KeyCode.SPACE) {
@@ -188,7 +196,9 @@ public class GamePlayScreen {
             }
         });
 
-        root.setOnKeyReleased(e -> {
+        root.setOnKeyReleased(e ->
+
+        {
             if (e.getCode() == KeyCode.W || e.getCode() == KeyCode.UP)
                 upPressed = false;
             if (e.getCode() == KeyCode.S || e.getCode() == KeyCode.DOWN)
@@ -241,17 +251,24 @@ public class GamePlayScreen {
         playerSprite.setX(playerX - 30);
         playerSprite.setY(playerY - 30);
 
+        // AUTOMATIC HEXAGON PAINTING WHILE MOVING
+        // automatically claims the tile where the player currently standing on
+        territoryManager.claimTile(playerX, playerY);
+        ownedHexCount = territoryManager.getOwnedHexCount();
+
         // TRAIL LOGIC
         // draws the trail and setting the initial inside territory into false
         trailManager.updateTrail(playerX, playerY, false);
 
+        // clears the canvas
         trailGc.clearRect(0, 0, trailCanvas.getWidth(), trailCanvas.getHeight());
 
         // shift the canvas drawing origin to the world center
         trailGc.save();
         trailGc.translate(WORLD_RADIUS, WORLD_RADIUS);
 
-        trailManager.drawDebugTrail(trailGc, Color.web("#9370DB"));
+        // draw the filled tiles with a slightly transparent orange (dough color)
+        territoryManager.drawTerritory(trailGc, Color.web("#FFA500", 0.6));
 
         trailGc.restore(); // put the origin back so clearRect works next frame
 
