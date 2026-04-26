@@ -1,15 +1,23 @@
 package app.screens;
 
+import java.io.File;
+
 import app.Main;
 import app.utils.UIUtils;
-import javafx.geometry.Pos;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
-import javafx.scene.layout.*;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundImage;
+import javafx.scene.layout.BackgroundPosition;
+import javafx.scene.layout.BackgroundRepeat;
+import javafx.scene.layout.BackgroundSize;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
-import java.io.File;
 
 public class LandingPageScreen {
     private VBox root;
@@ -18,7 +26,7 @@ public class LandingPageScreen {
         this.root = new VBox(25);
         this.root.setAlignment(Pos.TOP_CENTER); 
         
-        this.root.setPadding(new Insets(400, 0, 0, 0)); 
+        this.root.setPadding(new Insets(300, 0, 0, 0)); 
 
         File bgFile = new File("assets/images/MainBackground.jpg");
         if (bgFile.exists()) {
@@ -38,7 +46,7 @@ public class LandingPageScreen {
 
         //Shadow part ng title
         Label titleBottom = new Label("EMPANADA DOUGHMINATION");
-        titleBottom.setFont(Font.font(UIUtils.MAIN_FONT, 110));
+        titleBottom.setFont(Font.font(UIUtils.MAIN_FONT, 100));
         titleBottom.setStyle("-fx-text-fill: #5D4037;"); // Dark Brown
         // Offset this layer slightly to the right and down for shadow effect
         titleBottom.setTranslateX(4); 
@@ -46,7 +54,7 @@ public class LandingPageScreen {
 
         //Lighter part ng title
         Label titleTop = new Label("EMPANADA DOUGHMINATION");
-        titleTop.setFont(Font.font(UIUtils.MAIN_FONT, 110));
+        titleTop.setFont(Font.font(UIUtils.MAIN_FONT, 100));
         titleTop.setStyle("-fx-text-fill: #b89664;"); // Light Cream/White
 
         //Add to stackkk
