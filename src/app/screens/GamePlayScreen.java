@@ -31,7 +31,7 @@ public class GamePlayScreen {
     private final Pane world;
     private final Main mainApp;
 
-    private final TrailManager trailManager   = new TrailManager();
+    private final TrailManager trailManager = new TrailManager();
     private final TerritoryManager territoryManager = new TerritoryManager();
 
     /** Canvas for territory fill + trail (redrawn every frame). */
@@ -61,15 +61,14 @@ public class GamePlayScreen {
      * Colors are picked to closely match the actual sprite tones.
      */
     private static final Map<String, Color> DOUGH_COLORS = Map.of(
-            "orange",  Color.web("#FF7043"),
-            "red",     Color.web("#E53935"),
-            "blue",    Color.web("#1E88E5"),
-            "green",   Color.web("#43A047"),
-            "yellow",  Color.web("#FDD835"),
-            "pink",    Color.web("#EC407A"),
-            "purple",  Color.web("#8E24AA"),
-            "indigo",  Color.web("#3949AB")
-    );
+            "orange", Color.web("#FF7043"),
+            "red", Color.web("#E53935"),
+            "blue", Color.web("#1E88E5"),
+            "green", Color.web("#43A047"),
+            "yellow", Color.web("#FDD835"),
+            "pink", Color.web("#EC407A"),
+            "purple", Color.web("#8E24AA"),
+            "indigo", Color.web("#3949AB"));
 
     /** HUD */
     private final Label territoryLabel;
@@ -91,16 +90,15 @@ public class GamePlayScreen {
         File bgFile = new File("assets/images/GameplayBackground.jpg");
         if (bgFile.exists()) {
             Image bgImage = new Image(bgFile.toURI().toString());
-            javafx.scene.layout.BackgroundImage background =
-                    new javafx.scene.layout.BackgroundImage(
-                            bgImage,
-                            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-                            javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
-                            javafx.scene.layout.BackgroundPosition.CENTER,
-                            new javafx.scene.layout.BackgroundSize(
-                                    javafx.scene.layout.BackgroundSize.AUTO,
-                                    javafx.scene.layout.BackgroundSize.AUTO,
-                                    false, false, false, true));
+            javafx.scene.layout.BackgroundImage background = new javafx.scene.layout.BackgroundImage(
+                    bgImage,
+                    javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
+                    javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
+                    javafx.scene.layout.BackgroundPosition.CENTER,
+                    new javafx.scene.layout.BackgroundSize(
+                            javafx.scene.layout.BackgroundSize.AUTO,
+                            javafx.scene.layout.BackgroundSize.AUTO,
+                            false, false, false, true));
             root.setBackground(new javafx.scene.layout.Background(background));
         } else {
             root.setStyle("-fx-background-color: #111111;");
@@ -132,7 +130,7 @@ public class GamePlayScreen {
         world.getChildren().add(overlayCanvas);
 
         // --- Player sprite: pick a random dough at each game start ---
-        String[] doughNames = {"orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo"};
+        String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
         String chosenDough = doughNames[new Random().nextInt(doughNames.length)];
         PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
 
@@ -140,23 +138,28 @@ public class GamePlayScreen {
         if (playerFile.exists()) {
             Image playerImage = new Image(playerFile.toURI().toString());
             playerSprite = new ImageView(playerImage);
-            playerSprite.setFitWidth(60);
-            playerSprite.setFitHeight(60);
+            playerSprite.setPreserveRatio(true);
+            playerSprite.setSmooth(true);
+            playerSprite.setFitWidth(100);
+            playerSprite.setFitHeight(100);
         }
-        if (playerSprite != null) world.getChildren().add(playerSprite);
+        if (playerSprite != null)
+            world.getChildren().add(playerSprite);
 
         // --- Starting territory centred on spawn ---
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
         // --- HUD ---
         Label instructions = new Label("WASD / Arrows to move · ESC to exit");
-        instructions.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
+        instructions.setStyle(
+                "-fx-text-fill: white; -fx-font-size: 18px; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
         instructions.setLayoutX(10);
         instructions.setLayoutY(10);
         root.getChildren().add(instructions);
 
         territoryLabel = new Label("Territory: 0.0%");
-        territoryLabel.setStyle("-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
+        territoryLabel.setStyle(
+                "-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
         root.getChildren().add(territoryLabel);
 
         powerUpBar = new ProgressBar(0);
@@ -167,23 +170,42 @@ public class GamePlayScreen {
         root.setFocusTraversable(true);
 
         root.setOnMouseMoved(e -> {
-            double dx = e.getX() - (root.getWidth()  / 2);
+            double dx = e.getX() - (root.getWidth() / 2);
             double dy = e.getY() - (root.getHeight() / 2);
             double len = Math.sqrt(dx * dx + dy * dy);
-            if (len > 1) { dirX = dx / len; dirY = dy / len; }
+            if (len > 1) {
+                dirX = dx / len;
+                dirY = dy / len;
+            }
         });
 
         root.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.W || e.getCode() == KeyCode.UP)    { dirX =  0; dirY = -1; }
-            if (e.getCode() == KeyCode.S || e.getCode() == KeyCode.DOWN)  { dirX =  0; dirY =  1; }
-            if (e.getCode() == KeyCode.A || e.getCode() == KeyCode.LEFT)  { dirX = -1; dirY =  0; }
-            if (e.getCode() == KeyCode.D || e.getCode() == KeyCode.RIGHT) { dirX =  1; dirY =  0; }
-            if (e.getCode() == KeyCode.ESCAPE) mainApp.showLandingPage();
+            if (e.getCode() == KeyCode.W || e.getCode() == KeyCode.UP) {
+                dirX = 0;
+                dirY = -1;
+            }
+            if (e.getCode() == KeyCode.S || e.getCode() == KeyCode.DOWN) {
+                dirX = 0;
+                dirY = 1;
+            }
+            if (e.getCode() == KeyCode.A || e.getCode() == KeyCode.LEFT) {
+                dirX = -1;
+                dirY = 0;
+            }
+            if (e.getCode() == KeyCode.D || e.getCode() == KeyCode.RIGHT) {
+                dirX = 1;
+                dirY = 0;
+            }
+            if (e.getCode() == KeyCode.ESCAPE)
+                mainApp.showLandingPage();
         });
 
         // --- Game loop ---
         new AnimationTimer() {
-            @Override public void handle(long now) { update(); }
+            @Override
+            public void handle(long now) {
+                update();
+            }
         }.start();
     }
 
@@ -194,7 +216,8 @@ public class GamePlayScreen {
     private void update() {
         double screenW = root.getWidth();
         double screenH = root.getHeight();
-        if (screenW == 0) return;
+        if (screenW == 0)
+            return;
 
         // --- Move player ---
         playerX += dirX * SPEED;
@@ -213,7 +236,8 @@ public class GamePlayScreen {
         boolean insideTerr = territoryManager.isInsideTerritory(playerX, playerY);
 
         // Track whether the player is currently outside (trail recording)
-        if (!insideTerr) outsideTerritory = true;
+        if (!insideTerr)
+            outsideTerritory = true;
 
         // --- Update trail ---
         boolean captured = trailManager.update(playerX, playerY, insideTerr);
@@ -243,7 +267,8 @@ public class GamePlayScreen {
         // --- Render overlay (territory + trail) ---
         overlayGc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
         overlayGc.save();
-        // The canvas is offset by -WORLD_RADIUS so translate back so (0,0) = world centre
+        // The canvas is offset by -WORLD_RADIUS so translate back so (0,0) = world
+        // centre
         overlayGc.translate(WORLD_RADIUS, WORLD_RADIUS);
 
         territoryManager.drawTerritory(overlayGc, PLAYER_COLOR);
@@ -277,7 +302,8 @@ public class GamePlayScreen {
         // Reset position and give a fresh small starting territory
         playerX = 0;
         playerY = 0;
-        dirX = 1; dirY = 0;
+        dirX = 1;
+        dirY = 0;
         outsideTerritory = false;
         territoryManager.initStartingTerritory(playerX, playerY, 70);
     }
