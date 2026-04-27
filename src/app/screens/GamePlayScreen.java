@@ -1,11 +1,17 @@
 package app.screens;
 
 import java.io.File;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 import app.Main;
 import app.game_logic.TerritoryManager;
 import app.game_logic.TrailManager;
 import javafx.animation.AnimationTimer;
+import javafx.geometry.Point2D;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
@@ -16,41 +22,72 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 
 public class GamePlayScreen {
-    private Pane root;
-    private Pane world;
-    private Main mainApp;
-    private TrailManager trailManager;
-    private TerritoryManager territoryManager;
 
-    private javafx.scene.canvas.Canvas trailCanvas;
-    private javafx.scene.canvas.GraphicsContext trailGc;
+    // -----------------------------------------------------------------------
+    // Fields
+    // -----------------------------------------------------------------------
 
+    private final Pane root;
+    private final Pane world;
+    private final Main mainApp;
+
+    private final TrailManager trailManager   = new TrailManager();
+    private final TerritoryManager territoryManager = new TerritoryManager();
+
+    /** Canvas for territory fill + trail (redrawn every frame). */
+    private final Canvas overlayCanvas;
+    private final GraphicsContext overlayGc;
+
+    /** Player visual */
     private ImageView playerSprite;
+
+    /** Player world-space position */
     private double playerX = 0;
     private double playerY = 0;
-    private double speed = 1.5;
+    private final double SPEED = 2.5;
 
-    private final double WORLD_RADIUS = 1500;
-
-    private boolean upPressed, downPressed, leftPressed, rightPressed;
-
-    private Label territoryLabel;
-    private ProgressBar powerUpBar;
-
-    private int ownedHexCount = 0;
-    private int totalHexCount = 1000;
-
-    private boolean powerUpActive = false;
-    private double timeLeft = 0;
-    private double totalDuration = 5.0;
-
+    /** Current movement direction (unit vector) */
     private double dirX = 1;
     private double dirY = 0;
 
+    /** World radius */
+    private final double WORLD_RADIUS = 1500;
+
+    /** Player dough color — derived from the randomly chosen dough sprite. */
+    private final Color PLAYER_COLOR;
+
+    /**
+     * Maps each dough filename (without extension) to its representative color.
+     * Colors are picked to closely match the actual sprite tones.
+     */
+    private static final Map<String, Color> DOUGH_COLORS = Map.of(
+            "orange",  Color.web("#FF7043"),
+            "red",     Color.web("#E53935"),
+            "blue",    Color.web("#1E88E5"),
+            "green",   Color.web("#43A047"),
+            "yellow",  Color.web("#FDD835"),
+            "pink",    Color.web("#EC407A"),
+            "purple",  Color.web("#8E24AA"),
+            "indigo",  Color.web("#3949AB")
+    );
+
+    /** HUD */
+    private final Label territoryLabel;
+    private final ProgressBar powerUpBar;
+
+    /** True while the player is outside their territory (trail is active). */
+    private boolean outsideTerritory = false;
+
+    // -----------------------------------------------------------------------
+    // Constructor / Setup
+    // -----------------------------------------------------------------------
+
     public GamePlayScreen(Main mainApp) {
         this.mainApp = mainApp;
+
         root = new Pane();
 
+        // --- Background ---
         File bgFile = new File("assets/images/GameplayBackground.jpg");
         if (bgFile.exists()) {
             Image bgImage = new Image(bgFile.toURI().toString());
@@ -69,22 +106,189 @@ public class GamePlayScreen {
             root.setStyle("-fx-background-color: #111111;");
         }
 
+        // --- World pane ---
         world = new Pane();
         root.getChildren().add(world);
 
+        // --- Arena circle ---
         Circle arena = new Circle(0, 0, WORLD_RADIUS);
         arena.setFill(Color.web("#f8f1df", 0.8));
         arena.setStroke(Color.WHITE);
         arena.setStrokeWidth(10);
         world.getChildren().add(arena);
 
-        javafx.scene.canvas.Canvas hexCanvas = new javafx.scene.canvas.Canvas(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
+        // --- Hex grid overlay (static — drawn once onto a canvas) ---
+        Canvas hexCanvas = new Canvas(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
         hexCanvas.setTranslateX(-WORLD_RADIUS);
         hexCanvas.setTranslateY(-WORLD_RADIUS);
+        drawHexGrid(hexCanvas.getGraphicsContext2D());
+        world.getChildren().add(hexCanvas);
 
-        javafx.scene.canvas.GraphicsContext gc = hexCanvas.getGraphicsContext2D();
+        // --- Dynamic overlay: territory + trail redrawn every frame ---
+        overlayCanvas = new Canvas(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
+        overlayCanvas.setTranslateX(-WORLD_RADIUS);
+        overlayCanvas.setTranslateY(-WORLD_RADIUS);
+        overlayGc = overlayCanvas.getGraphicsContext2D();
+        world.getChildren().add(overlayCanvas);
+
+        // --- Player sprite: pick a random dough at each game start ---
+        String[] doughNames = {"orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo"};
+        String chosenDough = doughNames[new Random().nextInt(doughNames.length)];
+        PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
+
+        File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
+        if (playerFile.exists()) {
+            Image playerImage = new Image(playerFile.toURI().toString());
+            playerSprite = new ImageView(playerImage);
+            playerSprite.setFitWidth(60);
+            playerSprite.setFitHeight(60);
+        }
+        if (playerSprite != null) world.getChildren().add(playerSprite);
+
+        // --- Starting territory centred on spawn ---
+        territoryManager.initStartingTerritory(playerX, playerY, 70);
+
+        // --- HUD ---
+        Label instructions = new Label("WASD / Arrows to move · ESC to exit");
+        instructions.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
+        instructions.setLayoutX(10);
+        instructions.setLayoutY(10);
+        root.getChildren().add(instructions);
+
+        territoryLabel = new Label("Territory: 0.0%");
+        territoryLabel.setStyle("-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
+        root.getChildren().add(territoryLabel);
+
+        powerUpBar = new ProgressBar(0);
+        powerUpBar.setPrefWidth(300);
+        root.getChildren().add(powerUpBar);
+
+        // --- Input ---
+        root.setFocusTraversable(true);
+
+        root.setOnMouseMoved(e -> {
+            double dx = e.getX() - (root.getWidth()  / 2);
+            double dy = e.getY() - (root.getHeight() / 2);
+            double len = Math.sqrt(dx * dx + dy * dy);
+            if (len > 1) { dirX = dx / len; dirY = dy / len; }
+        });
+
+        root.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.W || e.getCode() == KeyCode.UP)    { dirX =  0; dirY = -1; }
+            if (e.getCode() == KeyCode.S || e.getCode() == KeyCode.DOWN)  { dirX =  0; dirY =  1; }
+            if (e.getCode() == KeyCode.A || e.getCode() == KeyCode.LEFT)  { dirX = -1; dirY =  0; }
+            if (e.getCode() == KeyCode.D || e.getCode() == KeyCode.RIGHT) { dirX =  1; dirY =  0; }
+            if (e.getCode() == KeyCode.ESCAPE) mainApp.showLandingPage();
+        });
+
+        // --- Game loop ---
+        new AnimationTimer() {
+            @Override public void handle(long now) { update(); }
+        }.start();
+    }
+
+    // -----------------------------------------------------------------------
+    // Game loop
+    // -----------------------------------------------------------------------
+
+    private void update() {
+        double screenW = root.getWidth();
+        double screenH = root.getHeight();
+        if (screenW == 0) return;
+
+        // --- Move player ---
+        playerX += dirX * SPEED;
+        playerY += dirY * SPEED;
+
+        // Clamp inside arena
+        double dist = Math.sqrt(playerX * playerX + playerY * playerY);
+        double maxR = WORLD_RADIUS - 30;
+        if (dist > maxR) {
+            double angle = Math.atan2(playerY, playerX);
+            playerX = Math.cos(angle) * maxR;
+            playerY = Math.sin(angle) * maxR;
+        }
+
+        // --- Territory check ---
+        boolean insideTerr = territoryManager.isInsideTerritory(playerX, playerY);
+
+        // Track whether the player is currently outside (trail recording)
+        if (!insideTerr) outsideTerritory = true;
+
+        // --- Update trail ---
+        boolean captured = trailManager.update(playerX, playerY, insideTerr);
+
+        // --- Capture event ---
+        if (captured) {
+            outsideTerritory = false;
+            List<Point2D> trail = trailManager.getTrailPoints();
+            // Territory is additive-only; captureTerritory uses the trail's own
+            // endpoints to find the stitch vertices on the boundary polygon.
+            territoryManager.captureTerritory(trail);
+            trailManager.clear();
+        }
+
+        // --- Self-collision check (only while trail is active) ---
+        if (trailManager.isActive() && trailManager.checkSelfCollision(playerX, playerY)) {
+            handleDeath();
+            return;
+        }
+
+        // --- Update sprite position ---
+        if (playerSprite != null) {
+            playerSprite.setX(playerX - 30);
+            playerSprite.setY(playerY - 30);
+        }
+
+        // --- Render overlay (territory + trail) ---
+        overlayGc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
+        overlayGc.save();
+        // The canvas is offset by -WORLD_RADIUS so translate back so (0,0) = world centre
+        overlayGc.translate(WORLD_RADIUS, WORLD_RADIUS);
+
+        territoryManager.drawTerritory(overlayGc, PLAYER_COLOR);
+        trailManager.draw(overlayGc, PLAYER_COLOR);
+
+        overlayGc.restore();
+
+        // --- Follow camera ---
+        world.setTranslateX((screenW / 2) - playerX);
+        world.setTranslateY((screenH / 2) - playerY);
+
+        // --- HUD ---
+        double areaFraction = territoryManager.getApproximateAreaFraction(Math.PI * WORLD_RADIUS * WORLD_RADIUS);
+        territoryLabel.setText(String.format("Territory: %.1f%%", areaFraction * 100));
+        territoryLabel.setLayoutX(screenW - 230);
+        territoryLabel.setLayoutY(20);
+
+        powerUpBar.setLayoutX((screenW / 2) - 150);
+        powerUpBar.setLayoutY(screenH - 50);
+    }
+
+    // -----------------------------------------------------------------------
+    // Death
+    // -----------------------------------------------------------------------
+
+    private void handleDeath() {
+        System.out.println("You hit your own trail — game restarting!");
+        trailManager.clear();
+        territoryManager.clearTerritory();
+
+        // Reset position and give a fresh small starting territory
+        playerX = 0;
+        playerY = 0;
+        dirX = 1; dirY = 0;
+        outsideTerritory = false;
+        territoryManager.initStartingTerritory(playerX, playerY, 70);
+    }
+
+    // -----------------------------------------------------------------------
+    // Static hex-grid drawing
+    // -----------------------------------------------------------------------
+
+    private void drawHexGrid(GraphicsContext gc) {
         gc.setStroke(Color.web("#e0d5ba"));
-        gc.setLineWidth(4);
+        gc.setLineWidth(1.0);
 
         double hexRadius = 27.5;
         double hexW = Math.sqrt(3) * hexRadius;
@@ -92,153 +296,30 @@ public class GamePlayScreen {
 
         for (double y = 0; y < WORLD_RADIUS * 2 + hexH; y += hexH * 0.75) {
             int row = (int) (y / (hexH * 0.75));
-            double xOffset = (row % 2 == 0) ? 0 : hexW / 2;
+            double xOff = (row % 2 == 0) ? 0 : hexW / 2;
 
             for (double x = 0; x < WORLD_RADIUS * 2 + hexW; x += hexW) {
-                double centerX = x + xOffset;
-                double centerY = y;
-
-                double dx = centerX - WORLD_RADIUS;
-                double dy = centerY - WORLD_RADIUS;
-
+                double cx = x + xOff;
+                double cy = y;
+                double dx = cx - WORLD_RADIUS;
+                double dy = cy - WORLD_RADIUS;
                 if (Math.sqrt(dx * dx + dy * dy) <= WORLD_RADIUS + hexRadius) {
-                    double[] xPoints = new double[6];
-                    double[] yPoints = new double[6];
-
+                    double[] xp = new double[6];
+                    double[] yp = new double[6];
                     for (int i = 0; i < 6; i++) {
-                        double angle_rad = Math.PI / 180 * (60 * i - 30);
-                        xPoints[i] = centerX + hexRadius * Math.cos(angle_rad);
-                        yPoints[i] = centerY + hexRadius * Math.sin(angle_rad);
+                        double a = Math.PI / 180 * (60 * i - 30);
+                        xp[i] = cx + hexRadius * Math.cos(a);
+                        yp[i] = cy + hexRadius * Math.sin(a);
                     }
-
-                    gc.strokePolygon(xPoints, yPoints, 6);
+                    gc.strokePolygon(xp, yp, 6);
                 }
             }
         }
-
-        world.getChildren().add(hexCanvas);
-
-        trailManager = new TrailManager();
-        territoryManager = new TerritoryManager();
-
-        trailCanvas = new javafx.scene.canvas.Canvas(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
-        trailCanvas.setTranslateX(-WORLD_RADIUS);
-        trailCanvas.setTranslateY(-WORLD_RADIUS);
-        trailGc = trailCanvas.getGraphicsContext2D();
-        world.getChildren().add(trailCanvas);
-
-        File playerFile = new File("assets/images/PlayersDough/orange.png");
-        if (playerFile.exists()) {
-            Image playerImage = new Image(playerFile.toURI().toString());
-            playerSprite = new ImageView(playerImage);
-            playerSprite.setFitWidth(60);
-            playerSprite.setFitHeight(60);
-            world.getChildren().add(playerSprite);
-        }
-
-        Label instructions = new Label("Use WASD/Arrows to move. Press ESC to exit.");
-        instructions.setStyle("-fx-text-fill: white; -fx-font-size: 20px;");
-        instructions.setLayoutX(10);
-        instructions.setLayoutY(10);
-        root.getChildren().add(instructions);
-
-        territoryLabel = new Label("Territory: 0.0%");
-        territoryLabel.setStyle("-fx-text-fill: white; -fx-font-size: 24px;");
-        root.getChildren().add(territoryLabel);
-
-        powerUpBar = new ProgressBar(0);
-        powerUpBar.setPrefWidth(300);
-        root.getChildren().add(powerUpBar);
-
-        root.setFocusTraversable(true);
-
-        // ✅ ONLY CHANGE: mouse controls direction (no movement logic touched)
-        root.setOnMouseMoved(e -> {
-            double dx = e.getX() - (root.getWidth() / 2);
-            double dy = e.getY() - (root.getHeight() / 2);
-
-            double len = Math.sqrt(dx * dx + dy * dy);
-            if (len != 0) {
-                dirX = dx / len;
-                dirY = dy / len;
-            }
-        });
-
-        root.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.W || e.getCode() == KeyCode.UP) { dirX = 0; dirY = -1; }
-            if (e.getCode() == KeyCode.S || e.getCode() == KeyCode.DOWN) { dirX = 0; dirY = 1; }
-            if (e.getCode() == KeyCode.A || e.getCode() == KeyCode.LEFT) { dirX = -1; dirY = 0; }
-            if (e.getCode() == KeyCode.D || e.getCode() == KeyCode.RIGHT) { dirX = 1; dirY = 0; }
-
-            if (e.getCode() == KeyCode.ESCAPE) mainApp.showLandingPage();
-        });
-
-        AnimationTimer gameLoop = new AnimationTimer() {
-            @Override
-            public void handle(long now) {
-                update();
-            }
-        };
-        gameLoop.start();
     }
 
-    private void update() {
-        if (playerSprite == null) return;
-
-        double screenWidth = root.getWidth();
-        double screenHeight = root.getHeight();
-        if (screenWidth == 0) return;
-
-        // ✅ ONLY CHANGE: ALWAYS MOVE
-        playerX += dirX * speed;
-        playerY += dirY * speed;
-
-        double distance = Math.sqrt(playerX * playerX + playerY * playerY);
-        double maxRadius = WORLD_RADIUS - 15;
-
-        if (distance > maxRadius) {
-            double angle = Math.atan2(playerY, playerX);
-            playerX = Math.cos(angle) * maxRadius;
-            playerY = Math.sin(angle) * maxRadius;
-        }
-
-        playerSprite.setX(playerX - 30);
-        playerSprite.setY(playerY - 30);
-
-        territoryManager.claimTile(playerX, playerY);
-        ownedHexCount = territoryManager.getOwnedHexCount();
-
-        trailManager.updateTrail(playerX, playerY, false);
-
-        trailGc.clearRect(0, 0, trailCanvas.getWidth(), trailCanvas.getHeight());
-        trailGc.save();
-        trailGc.translate(WORLD_RADIUS, WORLD_RADIUS);
-        territoryManager.drawTerritory(trailGc, Color.web("#FFA500", 0.6));
-        trailGc.restore();
-
-        if (trailManager.checkSelfCollision(playerX, playerY)) {
-            System.out.println("BOOM! You hit your own dough!");
-
-            trailManager.updateTrail(playerX, playerY, true);
-            territoryManager.clearTerritory();
-
-            ownedHexCount = 0;
-            playerX = 0;
-            playerY = 0;
-        }
-
-        world.setTranslateX((screenWidth / 2) - playerX);
-        world.setTranslateY((screenHeight / 2) - playerY);
-
-        territoryLabel.setLayoutX(screenWidth - 220);
-        territoryLabel.setLayoutY(20);
-
-        powerUpBar.setLayoutX((screenWidth / 2) - 150);
-        powerUpBar.setLayoutY(screenHeight - 50);
-
-        double ownedPercent = (double) ownedHexCount / totalHexCount * 100;
-        territoryLabel.setText(String.format("Territory: %.1f%%", ownedPercent));
-    }
+    // -----------------------------------------------------------------------
+    // Public
+    // -----------------------------------------------------------------------
 
     public javafx.scene.Parent getRoot() {
         return root;
