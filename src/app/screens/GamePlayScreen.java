@@ -4,6 +4,7 @@ import java.io.File;
 
 import app.Main;
 import app.game_logic.TerritoryManager;
+import app.game_logic.Timer;
 import app.game_logic.TrailManager;
 import javafx.animation.AnimationTimer;
 import javafx.scene.control.Label;
@@ -21,6 +22,8 @@ public class GamePlayScreen {
     private Main mainApp;
     private TrailManager trailManager;
     private TerritoryManager territoryManager;
+
+    private AnimationTimer gameLoop;
 
     private javafx.scene.canvas.Canvas trailCanvas;
     private javafx.scene.canvas.GraphicsContext trailGc;
@@ -46,6 +49,9 @@ public class GamePlayScreen {
 
     private double dirX = 1;
     private double dirY = 0;
+
+    private Timer gameTimer;
+    private Label timerLabel;
 
     public GamePlayScreen(Main mainApp) {
         this.mainApp = mainApp;
@@ -152,7 +158,27 @@ public class GamePlayScreen {
 
         root.setFocusTraversable(true);
 
-        // ✅ ONLY CHANGE: mouse controls direction (no movement logic touched)
+        timerLabel = new Label("Time: 00:00");
+        timerLabel.setStyle("-fx-text-fill: white; -fx-font-size: 24px;");
+        timerLabel.setLayoutX(20);
+        timerLabel.setLayoutY(50);
+        root.getChildren().add(timerLabel);  
+
+        gameTimer = new Timer(10, // Set to 10 for your test
+            () -> {
+                // Use Platform.runLater just to be safe and clear the queue
+                javafx.application.Platform.runLater(() -> 
+                    timerLabel.setText("Time: " + gameTimer.getFormattedTime())
+                );
+            },
+            () -> {
+                System.out.println("Timer reached zero!"); // Debug check
+                javafx.application.Platform.runLater(this::showGameOver);
+            }
+        );
+
+        gameTimer.start();
+
         root.setOnMouseMoved(e -> {
             double dx = e.getX() - (root.getWidth() / 2);
             double dy = e.getY() - (root.getHeight() / 2);
@@ -173,7 +199,7 @@ public class GamePlayScreen {
             if (e.getCode() == KeyCode.ESCAPE) mainApp.showLandingPage();
         });
 
-        AnimationTimer gameLoop = new AnimationTimer() {
+        gameLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
                 update();
@@ -238,6 +264,18 @@ public class GamePlayScreen {
 
         double ownedPercent = (double) ownedHexCount / totalHexCount * 100;
         territoryLabel.setText(String.format("Territory: %.1f%%", ownedPercent));
+    }
+
+    private void showGameOver() {
+        gameTimer.stop(); 
+        gameLoop.stop(); 
+
+        javafx.application.Platform.runLater(() -> {
+            // Pass 'this' if you wanted the modal to call a reset within this class,
+            // but passing mainApp is better for a full restart.
+            GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
+            modal.show();
+        });
     }
 
     public javafx.scene.Parent getRoot() {

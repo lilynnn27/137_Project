@@ -1,9 +1,9 @@
 package app;
 
-import app.screens.LandingPageScreen;
-import app.screens.SinglePlayerScreen;
-import app.screens.MultiplayerScreen;
 import app.screens.GamePlayScreen;
+import app.screens.LandingPageScreen;
+import app.screens.MultiplayerScreen;
+import app.screens.SinglePlayerScreen;
 import javafx.application.Application;
 import javafx.stage.Stage;
 
@@ -50,7 +50,11 @@ public class Main extends Application {
         mainScene.setRoot(multiplayer.getRoot());
     }
     
-    public void showGamePlay() {
+    public javafx.stage.Stage getPrimaryStage(){
+        return window;
+    }
+
+    public void showGamePlay(){
         GamePlayScreen gamePlayScreen = new GamePlayScreen(this);
         mainScene.setRoot(gamePlayScreen.getRoot());
         gamePlayScreen.getRoot().requestFocus();
@@ -63,4 +67,5 @@ public class Main extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
 }
