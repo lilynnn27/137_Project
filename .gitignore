@@ -1,0 +1,11 @@
+# Compiled output
+target/
+*.class
+bin/
+
+# Maven local files
+apache-maven-*/
+
+# OS files
+.DS_Store
+Thumbs.db
