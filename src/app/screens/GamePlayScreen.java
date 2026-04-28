@@ -334,15 +334,16 @@ public class GamePlayScreen {
 
     private void handleDeath() {
         System.out.println("You hit your own trail — game restarting!");
-        trailManager.clear();
-        territoryManager.clearTerritory();
+        // trailManager.clear();
+        // territoryManager.clearTerritory();
 
-        playerX = 0;
-        playerY = 0;
-        dirX = 1;
-        dirY = 0;
-        outsideTerritory = false;
-        territoryManager.initStartingTerritory(playerX, playerY, 70);
+        // playerX = 0;
+        // playerY = 0;
+        // dirX = 1;
+        // dirY = 0;
+        // outsideTerritory = false;
+        // territoryManager.initStartingTerritory(playerX, playerY, 70);
+        javafx.application.Platform.runLater(this::showGameOver);
     }
 
     // -----------------------------------------------------------------------
@@ -353,10 +354,10 @@ public class GamePlayScreen {
         gameTimer.stop();
         gameLoop.stop();
 
-        javafx.application.Platform.runLater(() -> {
-            GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
-            modal.show();
-        });
+        // javafx.application.Platform.runLater(() -> {
+        GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
+        modal.show();
+        // });
     }
 
     // -----------------------------------------------------------------------
