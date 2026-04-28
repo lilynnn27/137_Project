@@ -1,10 +1,12 @@
 package app;
 
-import app.screens.LandingPageScreen;
-import app.screens.SinglePlayerScreen;
-import app.screens.MultiplayerScreen;
 import app.screens.GamePlayScreen;
+import app.screens.LandingPageScreen;
+import app.screens.MultiplayerScreen;
+import app.screens.SinglePlayerScreen;
 import javafx.application.Application;
+import javafx.scene.effect.ColorAdjust;
+import javafx.scene.effect.GaussianBlur;
 import javafx.stage.Stage;
 
 public class Main extends Application {
@@ -50,10 +52,27 @@ public class Main extends Application {
         mainScene.setRoot(multiplayer.getRoot());
     }
     
-    public void showGamePlay() {
+    public javafx.stage.Stage getPrimaryStage(){
+        return window;
+    }
+
+    public void showGamePlay(){
         GamePlayScreen gamePlayScreen = new GamePlayScreen(this);
         mainScene.setRoot(gamePlayScreen.getRoot());
         gamePlayScreen.getRoot().requestFocus();
+    }
+
+    public void setBackgroundBlur(boolean apply){
+        if(apply){
+            GaussianBlur blur = new GaussianBlur(15); // Adjust radius for more/less blur
+            ColorAdjust darken = new ColorAdjust();
+            darken.setBrightness(-0.5); // Darken by 50%
+            
+            blur.setInput(darken);
+            window.getScene().getRoot().setEffect(blur);
+        } else {
+            window.getScene().getRoot().setEffect(null);
+        }
     }
     
     public void exitGame() {
@@ -63,4 +82,5 @@ public class Main extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
 }
