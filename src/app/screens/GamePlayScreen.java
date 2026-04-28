@@ -1,9 +1,11 @@
 package app.screens;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 import app.Main;
 import app.game_logic.TerritoryManager;
@@ -48,8 +50,14 @@ public class GamePlayScreen {
     private final double SPEED = 2.5;
 
     /** Current movement direction (unit vector) */
+    Set<KeyCode> pressedKeys = new HashSet<>();
     private double dirX = 1;
     private double dirY = 0;
+
+    //** for smoothness when using keyboard keys */
+    private double targetDirX = 0;
+    private double targetDirY = 0;
+    private final double TURN_SMOOTHNESS = 0.15;
 
     /** World radius */
     private final double WORLD_RADIUS = 1500;
@@ -208,12 +216,19 @@ public class GamePlayScreen {
             }
         });
 
+        // key handling
         root.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.W || e.getCode() == KeyCode.UP)    { dirX =  0; dirY = -1; }
-            if (e.getCode() == KeyCode.S || e.getCode() == KeyCode.DOWN)  { dirX =  0; dirY =  1; }
-            if (e.getCode() == KeyCode.A || e.getCode() == KeyCode.LEFT)  { dirX = -1; dirY =  0; }
-            if (e.getCode() == KeyCode.D || e.getCode() == KeyCode.RIGHT) { dirX =  1; dirY =  0; }
-            if (e.getCode() == KeyCode.ESCAPE) mainApp.showLandingPage();
+            pressedKeys.add(e.getCode());
+            updateDirection();
+
+            if (e.getCode() == KeyCode.ESCAPE) {
+                mainApp.showLandingPage();
+            }
+        });
+
+        root.setOnKeyReleased(e -> {
+            pressedKeys.remove(e.getCode());
+            updateDirection();
         });
 
         // --- Game loop (named so showGameOver can stop it) ---
@@ -235,6 +250,17 @@ public class GamePlayScreen {
         double screenH = root.getHeight();
         if (screenW == 0)
             return;
+
+        //Smooth Direction
+        dirX += (targetDirX - dirX) * TURN_SMOOTHNESS;
+        dirY += (targetDirY - dirY) * TURN_SMOOTHNESS;
+
+        // re-normalize to keep constant speed
+        double len = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (len > 0) {
+            dirX /= len;
+            dirY /= len;
+        }
 
         // --- Move player ---
         playerX += dirX * SPEED;
@@ -332,6 +358,35 @@ public class GamePlayScreen {
             modal.show();
         });
     }
+
+    // -----------------------------------------------------------------------
+    // Update (key press)
+    // -----------------------------------------------------------------------
+    private void updateDirection() {
+        targetDirX = 0;
+        targetDirY = 0;
+
+        if (pressedKeys.contains(KeyCode.W) || pressedKeys.contains(KeyCode.UP)) {
+            targetDirY -= 1;
+        }
+        if (pressedKeys.contains(KeyCode.S) || pressedKeys.contains(KeyCode.DOWN)) {
+            targetDirY += 1;
+        }
+        if (pressedKeys.contains(KeyCode.A) || pressedKeys.contains(KeyCode.LEFT)) {
+            targetDirX -= 1;
+        }
+        if (pressedKeys.contains(KeyCode.D) || pressedKeys.contains(KeyCode.RIGHT)) {
+            targetDirX += 1;
+        }
+
+        // normalize target direction
+        if (targetDirX != 0 || targetDirY != 0) {
+            double len = Math.sqrt(targetDirX * targetDirX + targetDirY * targetDirY);
+            targetDirX /= len;
+            targetDirY /= len;
+        }
+    }
+
 
     // -----------------------------------------------------------------------
     // Static hex-grid drawing

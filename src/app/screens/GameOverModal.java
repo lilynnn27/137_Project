@@ -42,6 +42,10 @@ public class GameOverModal {
             bgView.setImage(new Image(file.toURI().toString()));
         }
 
+        bgView.setPreserveRatio(false);
+        bgView.fitWidthProperty().bind(window.widthProperty());
+        bgView.fitHeightProperty().bind(window.heightProperty());
+
         Label titleLabel = new Label("GAME OVER");
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #5d4037;");
 
@@ -65,16 +69,15 @@ public class GameOverModal {
         content.setAlignment(Pos.CENTER);
 
         StackPane root = new StackPane();
-        root.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-background-radius: 20;");    //testing    
+        // root.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-background-radius: 20;");    //testing    
         root.getChildren().addAll(bgView, content);
         root.setBackground(null);
 
         Scene scene = new Scene(root);
         scene.setFill(Color.TRANSPARENT); // Essential for the "shape" of the image to show
         
-        window.setWidth(400);
-        window.setHeight(300);
-
+        window.setWidth(1600);
+        window.setHeight(800);
         window.setScene(scene);
         window.centerOnScreen();
         window.showAndWait();
