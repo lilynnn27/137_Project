@@ -90,7 +90,7 @@ public class GameOverModal {
                                      "-fx-cursor: hand;"; 
 
         // SINGLE PLAYER
-        Button retryBtn = new Button("Single Player");
+        Button retryBtn = new Button("Retry");
         retryBtn.setFont(Font.font(UIUtils.MAIN_FONT, 45)); 
         retryBtn.setStyle(textButtonStyle);
         retryBtn.setOnMouseEntered(e -> retryBtn.setStyle(textButtonHoverStyle));
