@@ -85,6 +85,27 @@ public class TrailManager {
   }
 
   /**
+   * Check whether an enemy player's head touches this trail.
+   * No skip zone — the full trail is a hazard to other players.
+   *
+   * @param px Enemy player world X
+   * @param py Enemy player world Y
+   * @return true if the enemy head is within collision radius of any trail point
+   */
+  public boolean checkEnemyCollision(double px, double py) {
+    if (!active || points.isEmpty())
+      return false;
+
+    Point2D head = new Point2D(px, py);
+    for (Point2D pt : points) {
+      if (pt.distance(head) < SELF_COLLISION_RADIUS) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Returns the current trail points (a snapshot copy).
    * Used by TerritoryManager to compute the enclosed polygon for capture.
    */

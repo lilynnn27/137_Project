@@ -1,6 +1,7 @@
 package app.screens;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,8 @@ public class GamePlayScreen {
 
     private final TrailManager trailManager = new TrailManager();
     private final TerritoryManager territoryManager = new TerritoryManager();
+    /** Other players' trail managers — populated by multiplayer. Empty in single-player. */
+    private final List<TrailManager> enemyTrailManagers = new ArrayList<>();
 
     /** Canvas for territory fill + trail (redrawn every frame). */
     private final Canvas overlayCanvas;
@@ -297,6 +300,14 @@ public class GamePlayScreen {
         if (trailManager.isActive() && trailManager.checkSelfCollision(playerX, playerY)) {
             handleDeath();
             return;
+        }
+
+        // --- Enemy trail collision check ---
+        for (TrailManager enemyTrail : enemyTrailManagers) {
+            if (enemyTrail.checkEnemyCollision(playerX, playerY)) {
+                handleDeath();
+                return;
+            }
         }
 
         // --- Update sprite position ---
