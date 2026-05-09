@@ -363,10 +363,8 @@ public class GamePlayScreen {
         gameTimer.stop();
         gameLoop.stop();
 
-        // javafx.application.Platform.runLater(() -> {
         GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
         modal.show();
-        // });
     }
 
     // -----------------------------------------------------------------------
