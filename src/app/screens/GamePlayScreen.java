@@ -344,16 +344,9 @@ public class GamePlayScreen {
     // -----------------------------------------------------------------------
 
     private void handleDeath() {
-        System.out.println("You hit your own trail — game restarting!");
-        // trailManager.clear();
-        // territoryManager.clearTerritory();
-
-        // playerX = 0;
-        // playerY = 0;
-        // dirX = 1;
-        // dirY = 0;
-        // outsideTerritory = false;
-        // territoryManager.initStartingTerritory(playerX, playerY, 70);
+        trailManager.clear();
+        territoryManager.clearTerritory();
+        outsideTerritory = false;
         javafx.application.Platform.runLater(this::showGameOver);
     }
 
