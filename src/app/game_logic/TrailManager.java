@@ -28,7 +28,7 @@ public class TrailManager {
 
   // How many tail points to skip when checking self-collision (avoids false
   // positives with the segment right behind the player head)
-  private static final int SELF_COLLISION_SKIP = 12;
+  private static final int SELF_COLLISION_SKIP = 4;
 
   // Distance threshold for self-collision detection (point-based, used by enemy check)
   private static final double SELF_COLLISION_RADIUS = 8.0;
