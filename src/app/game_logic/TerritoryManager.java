@@ -65,6 +65,15 @@ public class TerritoryManager {
       return false;
 
     int n = polygon.size();
+
+    // Points within this distance of any edge are treated as inside,
+    // preventing ray-cast flicker when the player is exactly on the boundary.
+    final double BOUNDARY_EPSILON = 2.0;
+    for (int i = 0, j = n - 1; i < n; j = i++) {
+      if (segmentDistance(px, py, polygon.get(j), polygon.get(i)) < BOUNDARY_EPSILON)
+        return true;
+    }
+
     boolean inside = false;
     double x = px, y = py;
 
@@ -143,7 +152,8 @@ public class TerritoryManager {
     }
     if (areaB >= bestArea) {
       best = candB;
-    } // bestArea already updated
+      bestArea = areaB;
+    }
 
     polygon = best;
   }
@@ -200,6 +210,16 @@ public class TerritoryManager {
       }
     }
     return best;
+  }
+
+  /** Distance from point (px, py) to segment a→b. */
+  private static double segmentDistance(double px, double py, Point2D a, Point2D b) {
+    double dx = b.getX() - a.getX(), dy = b.getY() - a.getY();
+    double lenSq = dx * dx + dy * dy;
+    if (lenSq == 0) return Math.hypot(px - a.getX(), py - a.getY());
+    double t = Math.max(0, Math.min(1,
+        ((px - a.getX()) * dx + (py - a.getY()) * dy) / lenSq));
+    return Math.hypot(px - (a.getX() + t * dx), py - (a.getY() + t * dy));
   }
 
   /** Same as above but skips one index — used to find a second-nearest vertex. */
