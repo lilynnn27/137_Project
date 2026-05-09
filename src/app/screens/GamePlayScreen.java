@@ -63,6 +63,8 @@ public class GamePlayScreen {
     private double targetDirX = 0;
     private double targetDirY = 0;
     private final double TURN_SMOOTHNESS = 0.15;
+    private enum InputMode { KEYBOARD, MOUSE }
+    private InputMode activeInputMode = InputMode.KEYBOARD;
 
     /** World radius */
     private final double WORLD_RADIUS = 1500;
@@ -219,13 +221,17 @@ public class GamePlayScreen {
             double dy = e.getY() - (root.getHeight() / 2);
             double len = Math.sqrt(dx * dx + dy * dy);
             if (len > 1) {
-                dirX = dx / len;
-                dirY = dy / len;
+                activeInputMode = InputMode.MOUSE;
+                targetDirX = dx / len;
+                targetDirY = dy / len;
+                lastDirX = targetDirX;
+                lastDirY = targetDirY;
             }
         });
 
         // key handling
         root.setOnKeyPressed(e -> {
+            activeInputMode = InputMode.KEYBOARD;
             pressedKeys.add(e.getCode());
             updateDirection();
 
