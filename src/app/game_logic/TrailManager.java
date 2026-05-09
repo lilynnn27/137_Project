@@ -107,12 +107,12 @@ public class TrailManager {
    * @return true if the enemy head is within collision radius of any trail point
    */
   public boolean checkEnemyCollision(double px, double py) {
-    if (!active || points.isEmpty())
+    if (!active || points.size() < 2)
       return false;
 
     Point2D head = new Point2D(px, py);
-    for (Point2D pt : points) {
-      if (pt.distance(head) < SELF_COLLISION_RADIUS) {
+    for (int i = 0; i < points.size() - 1; i++) {
+      if (distanceToSegment(head, points.get(i), points.get(i + 1)) < COLLISION_RADIUS) {
         return true;
       }
     }
