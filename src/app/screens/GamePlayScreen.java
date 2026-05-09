@@ -94,6 +94,9 @@ public class GamePlayScreen {
     /** True while the player is outside their territory (trail is active). */
     private boolean outsideTerritory = false;
 
+    /** True once any death condition has fired — prevents double-invocation. */
+    private boolean isDead = false;
+
     /** Named game loop so it can be stopped on game-over. */
     private AnimationTimer gameLoop;
 
@@ -202,7 +205,7 @@ public class GamePlayScreen {
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {
                     System.out.println("Timer reached zero!");
-                    javafx.application.Platform.runLater(this::showGameOver);
+                    if (!isDead) { isDead = true; showGameOver(); }
                 });
         gameTimer.start();
 
@@ -344,10 +347,12 @@ public class GamePlayScreen {
     // -----------------------------------------------------------------------
 
     private void handleDeath() {
+        if (isDead) return;
+        isDead = true;
         trailManager.clear();
         territoryManager.clearTerritory();
         outsideTerritory = false;
-        javafx.application.Platform.runLater(this::showGameOver);
+        showGameOver();
     }
 
     // -----------------------------------------------------------------------

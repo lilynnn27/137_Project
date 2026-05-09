@@ -195,7 +195,18 @@ public class TerritoryManager {
     return area / 2.0;
   }
 
-  private record StitchPoint(int edgeIdx, Point2D proj) {}
+  private static final class StitchPoint {
+    private final int edgeIdx;
+    private final Point2D proj;
+
+    StitchPoint(int edgeIdx, Point2D proj) {
+      this.edgeIdx = edgeIdx;
+      this.proj    = proj;
+    }
+
+    int edgeIdx() { return edgeIdx; }
+    Point2D proj() { return proj; }
+  }
 
   /** Finds the nearest point on the polygon boundary via perpendicular edge projection. */
   private StitchPoint nearestEdgeProjection(double px, double py) {
