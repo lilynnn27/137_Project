@@ -1,6 +1,7 @@
 package app.screens;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,8 @@ public class GamePlayScreen {
 
     private final TrailManager trailManager = new TrailManager();
     private final TerritoryManager territoryManager = new TerritoryManager();
+    /** Other players' trail managers — populated by multiplayer. Empty in single-player. */
+    private final List<TrailManager> enemyTrailManagers = new ArrayList<>();
 
     /** Canvas for territory fill + trail (redrawn every frame). */
     private final Canvas overlayCanvas;
@@ -53,11 +56,15 @@ public class GamePlayScreen {
     Set<KeyCode> pressedKeys = new HashSet<>();
     private double dirX = 1;
     private double dirY = 0;
+    private double lastDirX = 1;
+    private double lastDirY = 0;
 
     //** for smoothness when using keyboard keys */
-    private double targetDirX = 0;
+    private double targetDirX = 1;
     private double targetDirY = 0;
     private final double TURN_SMOOTHNESS = 0.15;
+    private enum InputMode { KEYBOARD, MOUSE }
+    private InputMode activeInputMode = InputMode.KEYBOARD;
 
     /** World radius */
     private final double WORLD_RADIUS = 1500;
@@ -90,6 +97,9 @@ public class GamePlayScreen {
 
     /** True while the player is outside their territory (trail is active). */
     private boolean outsideTerritory = false;
+
+    /** True once any death condition has fired — prevents double-invocation. */
+    private boolean isDead = false;
 
     /** Named game loop so it can be stopped on game-over. */
     private AnimationTimer gameLoop;
@@ -199,7 +209,7 @@ public class GamePlayScreen {
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {
                     System.out.println("Timer reached zero!");
-                    javafx.application.Platform.runLater(this::showGameOver);
+                    if (!isDead) { isDead = true; showGameOver(); }
                 });
         gameTimer.start();
 
@@ -211,13 +221,17 @@ public class GamePlayScreen {
             double dy = e.getY() - (root.getHeight() / 2);
             double len = Math.sqrt(dx * dx + dy * dy);
             if (len > 1) {
-                dirX = dx / len;
-                dirY = dy / len;
+                activeInputMode = InputMode.MOUSE;
+                targetDirX = dx / len;
+                targetDirY = dy / len;
+                lastDirX = targetDirX;
+                lastDirY = targetDirY;
             }
         });
 
         // key handling
         root.setOnKeyPressed(e -> {
+            activeInputMode = InputMode.KEYBOARD;
             pressedKeys.add(e.getCode());
             updateDirection();
 
@@ -299,10 +313,18 @@ public class GamePlayScreen {
             return;
         }
 
+        // --- Enemy trail collision check ---
+        for (TrailManager enemyTrail : enemyTrailManagers) {
+            if (enemyTrail.checkEnemyCollision(playerX, playerY)) {
+                handleDeath();
+                return;
+            }
+        }
+
         // --- Update sprite position ---
         if (playerSprite != null) {
-            playerSprite.setX(playerX - 30);
-            playerSprite.setY(playerY - 30);
+            playerSprite.setX(playerX - 50);
+            playerSprite.setY(playerY - 50);
         }
 
         // --- Render overlay (territory + trail) ---
@@ -333,17 +355,12 @@ public class GamePlayScreen {
     // -----------------------------------------------------------------------
 
     private void handleDeath() {
-        System.out.println("You hit your own trail — game restarting!");
-        // trailManager.clear();
-        // territoryManager.clearTerritory();
-
-        // playerX = 0;
-        // playerY = 0;
-        // dirX = 1;
-        // dirY = 0;
-        // outsideTerritory = false;
-        // territoryManager.initStartingTerritory(playerX, playerY, 70);
-        javafx.application.Platform.runLater(this::showGameOver);
+        if (isDead) return;
+        isDead = true;
+        trailManager.clear();
+        territoryManager.clearTerritory();
+        outsideTerritory = false;
+        showGameOver();
     }
 
     // -----------------------------------------------------------------------
@@ -354,10 +371,8 @@ public class GamePlayScreen {
         gameTimer.stop();
         gameLoop.stop();
 
-        // javafx.application.Platform.runLater(() -> {
         GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
         modal.show();
-        // });
     }
 
     // -----------------------------------------------------------------------
@@ -385,6 +400,11 @@ public class GamePlayScreen {
             double len = Math.sqrt(targetDirX * targetDirX + targetDirY * targetDirY);
             targetDirX /= len;
             targetDirY /= len;
+            lastDirX = targetDirX;
+            lastDirY = targetDirY;
+        } else {
+            targetDirX = lastDirX;
+            targetDirY = lastDirY;
         }
     }
 

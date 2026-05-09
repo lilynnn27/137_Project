@@ -127,7 +127,7 @@ public class GameOverModal {
         window.setHeight(800);
         window.setScene(scene);
         window.centerOnScreen();
-        window.showAndWait();
-        mainApp.setBackgroundBlur(false); // Remove blur when modal is closed   
+        window.setOnHidden(e -> mainApp.setBackgroundBlur(false));
+        window.show();
     }
 }
