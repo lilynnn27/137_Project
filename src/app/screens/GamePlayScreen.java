@@ -323,8 +323,8 @@ public class GamePlayScreen {
 
         // --- Update sprite position ---
         if (playerSprite != null) {
-            playerSprite.setX(playerX - 30);
-            playerSprite.setY(playerY - 30);
+            playerSprite.setX(playerX - 50);
+            playerSprite.setY(playerY - 50);
         }
 
         // --- Render overlay (territory + trail) ---
