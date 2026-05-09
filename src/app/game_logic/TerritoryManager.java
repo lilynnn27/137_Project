@@ -111,8 +111,11 @@ public class TerritoryManager {
     int exitIdx = nearestVertexIndex(trailStart.getX(), trailStart.getY());
     int entryIdx = nearestVertexIndex(trailEnd.getX(), trailEnd.getY());
 
-    if (exitIdx == entryIdx)
-      return; // degenerate — skip
+    if (exitIdx == entryIdx) {
+      // Both endpoints snapped to the same vertex. Use the second-nearest vertex
+      // for the entry so the stitch has two distinct boundary points to work with.
+      entryIdx = nearestVertexIndex(trailEnd.getX(), trailEnd.getY(), exitIdx);
+    }
 
     double currentArea = Math.abs(signedArea(polygon));
 
@@ -190,6 +193,21 @@ public class TerritoryManager {
     int best = 0;
     double bestDist = Double.MAX_VALUE;
     for (int i = 0; i < polygon.size(); i++) {
+      double d = polygon.get(i).distance(x, y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  /** Same as above but skips one index — used to find a second-nearest vertex. */
+  private int nearestVertexIndex(double x, double y, int exclude) {
+    int best = -1;
+    double bestDist = Double.MAX_VALUE;
+    for (int i = 0; i < polygon.size(); i++) {
+      if (i == exclude) continue;
       double d = polygon.get(i).distance(x, y);
       if (d < bestDist) {
         bestDist = d;
