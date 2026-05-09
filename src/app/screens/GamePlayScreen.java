@@ -60,7 +60,7 @@ public class GamePlayScreen {
     private double lastDirY = 0;
 
     //** for smoothness when using keyboard keys */
-    private double targetDirX = 0;
+    private double targetDirX = 1;
     private double targetDirY = 0;
     private final double TURN_SMOOTHNESS = 0.15;
     private enum InputMode { KEYBOARD, MOUSE }
