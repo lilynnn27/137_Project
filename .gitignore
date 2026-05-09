@@ -9,3 +9,7 @@ apache-maven-*/
 # OS files
 .DS_Store
 Thumbs.db
+
+# context files
+CLAUDE.md
+GAME_MECHANICS.md
