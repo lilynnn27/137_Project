@@ -56,6 +56,8 @@ public class GamePlayScreen {
     Set<KeyCode> pressedKeys = new HashSet<>();
     private double dirX = 1;
     private double dirY = 0;
+    private double lastDirX = 1;
+    private double lastDirY = 0;
 
     //** for smoothness when using keyboard keys */
     private double targetDirX = 0;
@@ -392,6 +394,11 @@ public class GamePlayScreen {
             double len = Math.sqrt(targetDirX * targetDirX + targetDirY * targetDirY);
             targetDirX /= len;
             targetDirY /= len;
+            lastDirX = targetDirX;
+            lastDirY = targetDirY;
+        } else {
+            targetDirX = lastDirX;
+            targetDirY = lastDirY;
         }
     }
 
