@@ -117,14 +117,8 @@ public class TerritoryManager {
     Point2D trailStart = trail.get(0); // near where player exited
     Point2D trailEnd = trail.get(trail.size() - 1); // near where player re-entered
 
-    int exitIdx = nearestVertexIndex(trailStart.getX(), trailStart.getY());
-    int entryIdx = nearestVertexIndex(trailEnd.getX(), trailEnd.getY());
-
-    if (exitIdx == entryIdx) {
-      // Both endpoints snapped to the same vertex. Use the second-nearest vertex
-      // for the entry so the stitch has two distinct boundary points to work with.
-      entryIdx = nearestVertexIndex(trailEnd.getX(), trailEnd.getY(), exitIdx);
-    }
+    StitchPoint exit  = nearestEdgeProjection(trailStart.getX(), trailStart.getY());
+    StitchPoint entry = nearestEdgeProjection(trailEnd.getX(),   trailEnd.getY());
 
     double currentArea = Math.abs(signedArea(polygon));
 
@@ -132,11 +126,11 @@ public class TerritoryManager {
     // (entry→exit).
     // The reversal is required so the polygon closes correctly without
     // self-intersection.
-    List<Point2D> candA = buildCandidatePolygon(exitIdx, entryIdx, trail, true);
+    List<Point2D> candA = buildCandidatePolygon(exit,  entry, trail, true);
 
     // Candidate B: walk boundary entry→exit (the other arc), then trail FORWARD
     // (exit→entry).
-    List<Point2D> candB = buildCandidatePolygon(entryIdx, exitIdx, trail, false);
+    List<Point2D> candB = buildCandidatePolygon(entry, exit,  trail, false);
 
     double areaA = Math.abs(signedArea(candA));
     double areaB = Math.abs(signedArea(candB));
@@ -159,26 +153,29 @@ public class TerritoryManager {
   }
 
   /** Build one candidate polygon by stitching a boundary arc + trail. */
-  private List<Point2D> buildCandidatePolygon(int fromIdx, int toIdx,
-      List<Point2D> trail,
-      boolean reverseTrail) {
+  private List<Point2D> buildCandidatePolygon(StitchPoint from, StitchPoint to,
+      List<Point2D> trail, boolean reverseTrail) {
     int n = polygon.size();
     List<Point2D> result = new ArrayList<>();
 
-    // Walk the boundary from fromIdx to toIdx (wrapping around)
-    int i = fromIdx;
+    // Start at the exact projected crossing point on the boundary
+    result.add(from.proj());
+
+    // Walk interior boundary vertices from the edge after 'from' up to 'to's edge
+    int i = (from.edgeIdx() + 1) % n;
     while (true) {
       result.add(polygon.get(i));
-      if (i == toIdx)
-        break;
+      if (i == to.edgeIdx()) break;
       i = (i + 1) % n;
     }
 
+    // End at the exact projected crossing point for the other endpoint
+    result.add(to.proj());
+
     // Append the trail
     if (reverseTrail) {
-      for (int t = trail.size() - 1; t >= 0; t--) {
+      for (int t = trail.size() - 1; t >= 0; t--)
         result.add(trail.get(t));
-      }
     } else {
       result.addAll(trail);
     }
@@ -198,18 +195,33 @@ public class TerritoryManager {
     return area / 2.0;
   }
 
-  /** Returns the index of the polygon vertex closest to (x, y). */
-  private int nearestVertexIndex(double x, double y) {
-    int best = 0;
+  private record StitchPoint(int edgeIdx, Point2D proj) {}
+
+  /** Finds the nearest point on the polygon boundary via perpendicular edge projection. */
+  private StitchPoint nearestEdgeProjection(double px, double py) {
+    int n = polygon.size();
     double bestDist = Double.MAX_VALUE;
-    for (int i = 0; i < polygon.size(); i++) {
-      double d = polygon.get(i).distance(x, y);
-      if (d < bestDist) {
-        bestDist = d;
-        best = i;
+    int bestEdge = 0;
+    Point2D bestPt = polygon.get(0);
+
+    for (int i = 0; i < n; i++) {
+      Point2D a = polygon.get(i);
+      Point2D b = polygon.get((i + 1) % n);
+      double dx = b.getX() - a.getX(), dy = b.getY() - a.getY();
+      double lenSq = dx * dx + dy * dy;
+      double t = (lenSq == 0) ? 0 :
+          Math.max(0, Math.min(1,
+              ((px - a.getX()) * dx + (py - a.getY()) * dy) / lenSq));
+      Point2D proj = new Point2D(a.getX() + t * dx, a.getY() + t * dy);
+      double dist = Math.hypot(px - proj.getX(), py - proj.getY());
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestEdge = i;
+        bestPt = proj;
       }
     }
-    return best;
+
+    return new StitchPoint(bestEdge, bestPt);
   }
 
   /** Distance from point (px, py) to segment a→b. */
@@ -220,21 +232,6 @@ public class TerritoryManager {
     double t = Math.max(0, Math.min(1,
         ((px - a.getX()) * dx + (py - a.getY()) * dy) / lenSq));
     return Math.hypot(px - (a.getX() + t * dx), py - (a.getY() + t * dy));
-  }
-
-  /** Same as above but skips one index — used to find a second-nearest vertex. */
-  private int nearestVertexIndex(double x, double y, int exclude) {
-    int best = -1;
-    double bestDist = Double.MAX_VALUE;
-    for (int i = 0; i < polygon.size(); i++) {
-      if (i == exclude) continue;
-      double d = polygon.get(i).distance(x, y);
-      if (d < bestDist) {
-        bestDist = d;
-        best = i;
-      }
-    }
-    return best;
   }
 
   // -----------------------------------------------------------------------
