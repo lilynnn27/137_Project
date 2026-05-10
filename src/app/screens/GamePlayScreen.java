@@ -9,6 +9,8 @@ import java.util.Random;
 import java.util.Set;
 
 import app.Main;
+import app.game_logic.PickupEntity;
+import app.game_logic.SlowingHazard;
 import app.game_logic.TerritoryManager;
 import app.game_logic.Timer;
 import app.game_logic.TrailManager;
@@ -37,7 +39,10 @@ public class GamePlayScreen {
 
     private final TrailManager trailManager = new TrailManager();
     private final TerritoryManager territoryManager = new TerritoryManager();
-    /** Other players' trail managers — populated by multiplayer. Empty in single-player. */
+    /**
+     * Other players' trail managers — populated by multiplayer. Empty in
+     * single-player.
+     */
     private final List<TrailManager> enemyTrailManagers = new ArrayList<>();
 
     /** Canvas for territory fill + trail (redrawn every frame). */
@@ -52,6 +57,16 @@ public class GamePlayScreen {
     private double playerY = 0;
     private final double SPEED = 2.5;
 
+    /**
+     * Multiplier applied to SPEED. Modified by hazards (e.g. SlowingHazard = 0.70).
+     */
+    private double speedMultiplier = 1.0;
+    /**
+     * Nanosecond timestamp when the current speed effect should expire (0 = no
+     * effect).
+     */
+    private long speedEffectEndNanos = 0;
+
     /** Current movement direction (unit vector) */
     Set<KeyCode> pressedKeys = new HashSet<>();
     private double dirX = 1;
@@ -59,11 +74,15 @@ public class GamePlayScreen {
     private double lastDirX = 1;
     private double lastDirY = 0;
 
-    //** for smoothness when using keyboard keys */
+    // ** for smoothness when using keyboard keys */
     private double targetDirX = 1;
     private double targetDirY = 0;
     private final double TURN_SMOOTHNESS = 0.15;
-    private enum InputMode { KEYBOARD, MOUSE }
+
+    private enum InputMode {
+        KEYBOARD, MOUSE
+    }
+
     private InputMode activeInputMode = InputMode.KEYBOARD;
 
     /** World radius */
@@ -78,11 +97,11 @@ public class GamePlayScreen {
      */
     private static final Map<String, Color> DOUGH_COLORS = Map.of(
             "orange", Color.web("#FF7043"),
-            "red",    Color.web("#E53935"),
-            "blue",   Color.web("#1E88E5"),
-            "green",  Color.web("#43A047"),
+            "red", Color.web("#E53935"),
+            "blue", Color.web("#1E88E5"),
+            "green", Color.web("#43A047"),
             "yellow", Color.web("#FDD835"),
-            "pink",   Color.web("#EC407A"),
+            "pink", Color.web("#EC407A"),
             "purple", Color.web("#8E24AA"),
             "indigo", Color.web("#3949AB"));
 
@@ -100,6 +119,21 @@ public class GamePlayScreen {
 
     /** True once any death condition has fired — prevents double-invocation. */
     private boolean isDead = false;
+
+    /**
+     * Active pickups on the map (hazards + power-ups). Despawned entries are
+     * removed each frame.
+     */
+    private final List<PickupEntity> pickups = new ArrayList<>();
+    /** Sprite for H1 Rolling Pin hazard; null if the file is missing. */
+    private Image rollingPinSprite;
+    /** Nanosecond timestamp of the last hazard spawn (0 = none yet). */
+    private long lastHazardSpawnNanos = 0;
+    /** How often to spawn a new Rolling Pin hazard (8 seconds). */
+    private static final long HAZARD_SPAWN_INTERVAL_NANOS = 8_000_000_000L;
+
+    /** Shared RNG — used for dough selection and hazard spawning. */
+    private final Random rng = new Random();
 
     /** Named game loop so it can be stopped on game-over. */
     private AnimationTimer gameLoop;
@@ -161,7 +195,7 @@ public class GamePlayScreen {
 
         // --- Player sprite: pick a random dough at each game start ---
         String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
-        String chosenDough = doughNames[new Random().nextInt(doughNames.length)];
+        String chosenDough = doughNames[rng.nextInt(doughNames.length)];
         PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
 
         File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
@@ -175,6 +209,12 @@ public class GamePlayScreen {
         }
         if (playerSprite != null)
             world.getChildren().add(playerSprite);
+
+        // --- H1 Rolling Pin hazard sprite ---
+        File rpFile = new File("assets/images/hazard/RollingPin-Hazard.png");
+        if (rpFile.exists()) {
+            rollingPinSprite = new Image(rpFile.toURI().toString());
+        }
 
         // --- Starting territory centred on spawn ---
         territoryManager.initStartingTerritory(playerX, playerY, 70);
@@ -204,12 +244,15 @@ public class GamePlayScreen {
         root.getChildren().add(timerLabel);
 
         gameTimer = new Timer(
-                10, // seconds (set to desired game duration)
+                20, // seconds (set to desired game duration)
                 () -> javafx.application.Platform.runLater(
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {
                     System.out.println("Timer reached zero!");
-                    if (!isDead) { isDead = true; showGameOver(); }
+                    if (!isDead) {
+                        isDead = true;
+                        showGameOver();
+                    }
                 });
         gameTimer.start();
 
@@ -249,7 +292,7 @@ public class GamePlayScreen {
         gameLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                update();
+                update(now);
             }
         };
         gameLoop.start();
@@ -259,13 +302,13 @@ public class GamePlayScreen {
     // Game loop
     // -----------------------------------------------------------------------
 
-    private void update() {
+    private void update(long now) {
         double screenW = root.getWidth();
         double screenH = root.getHeight();
         if (screenW == 0)
             return;
 
-        //Smooth Direction
+        // Smooth Direction
         dirX += (targetDirX - dirX) * TURN_SMOOTHNESS;
         dirY += (targetDirY - dirY) * TURN_SMOOTHNESS;
 
@@ -276,9 +319,14 @@ public class GamePlayScreen {
             dirY /= len;
         }
 
+        // --- Expire speed effects ---
+        if (speedMultiplier != 1.0 && now >= speedEffectEndNanos) {
+            speedMultiplier = 1.0;
+        }
+
         // --- Move player ---
-        playerX += dirX * SPEED;
-        playerY += dirY * SPEED;
+        playerX += dirX * SPEED * speedMultiplier;
+        playerY += dirY * SPEED * speedMultiplier;
 
         // Clamp inside arena
         double dist = Math.sqrt(playerX * playerX + playerY * playerY);
@@ -287,6 +335,24 @@ public class GamePlayScreen {
             double angle = Math.atan2(playerY, playerX);
             playerX = Math.cos(angle) * maxR;
             playerY = Math.sin(angle) * maxR;
+        }
+
+        // --- Hazard spawn ---
+        if (lastHazardSpawnNanos == 0 || now - lastHazardSpawnNanos >= HAZARD_SPAWN_INTERVAL_NANOS) {
+            spawnRollingPinHazard();
+            lastHazardSpawnNanos = now;
+        }
+
+        // --- Pickup collision ---
+        pickups.removeIf(p -> !p.isActive());
+        for (PickupEntity pickup : pickups) {
+            if (pickup.isContactedBy(playerX, playerY)) {
+                pickup.despawn();
+                if (pickup instanceof SlowingHazard sh) {
+                    speedMultiplier = SlowingHazard.SPEED_MULTIPLIER;
+                    speedEffectEndNanos = now + (long) (sh.getEffectDurationSeconds() * 1_000_000_000L);
+                }
+            }
         }
 
         // --- Territory check ---
@@ -333,6 +399,9 @@ public class GamePlayScreen {
         overlayGc.translate(WORLD_RADIUS, WORLD_RADIUS);
         territoryManager.drawTerritory(overlayGc, PLAYER_COLOR);
         trailManager.draw(overlayGc, PLAYER_COLOR);
+        for (PickupEntity pickup : pickups) {
+            pickup.draw(overlayGc);
+        }
         overlayGc.restore();
 
         // --- Follow camera ---
@@ -351,14 +420,42 @@ public class GamePlayScreen {
     }
 
     // -----------------------------------------------------------------------
+    // Hazard spawning
+    // -----------------------------------------------------------------------
+
+    /**
+     * Spawns a Rolling Pin (H1) hazard at a random position inside the arena
+     * that is not covered by the player's territory.
+     * Up to 20 attempts; silently skips if no valid tile is found.
+     */
+    private void spawnRollingPinHazard() {
+        if (rollingPinSprite == null)
+            return;
+        double maxR = WORLD_RADIUS * 0.85;
+        for (int attempt = 0; attempt < 20; attempt++) {
+            double angle = rng.nextDouble() * 2 * Math.PI;
+            double r = rng.nextDouble() * maxR;
+            double hx = Math.cos(angle) * r;
+            double hy = Math.sin(angle) * r;
+            if (!territoryManager.isInsideTerritory(hx, hy)) {
+                pickups.add(new SlowingHazard(hx, hy, rollingPinSprite));
+                return;
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Death
     // -----------------------------------------------------------------------
 
     private void handleDeath() {
-        if (isDead) return;
+        if (isDead)
+            return;
         isDead = true;
         trailManager.clear();
         territoryManager.clearTerritory();
+        pickups.clear();
+        speedMultiplier = 1.0;
         outsideTerritory = false;
         showGameOver();
     }
@@ -407,7 +504,6 @@ public class GamePlayScreen {
             targetDirY = lastDirY;
         }
     }
-
 
     // -----------------------------------------------------------------------
     // Static hex-grid drawing
