@@ -11,6 +11,7 @@ import java.util.Set;
 import app.Main;
 import app.game_logic.FreezeHazard;
 import app.game_logic.PickupEntity;
+import app.game_logic.ReverseControlsHazard;
 import app.game_logic.SlowingHazard;
 import app.game_logic.TerritoryManager;
 import app.game_logic.Timer;
@@ -144,6 +145,17 @@ public class GamePlayScreen {
     /** How often to spawn a new Ice Spill hazard (12 seconds). */
     private static final long ICE_SPAWN_INTERVAL_NANOS = 12_000_000_000L;
 
+    /** True while the player's controls are reversed by H3 Rotten Egg. */
+    private boolean isControlsReversed = false;
+    /** Nanosecond timestamp when the reverse-controls effect expires. */
+    private long reverseEndNanos = 0;
+    /** Sprite for H3 Rotten Egg hazard; null if the file is missing. */
+    private Image rottenEggSprite;
+    /** Nanosecond timestamp of the last Rotten Egg spawn (0 = none yet). */
+    private long lastRottenEggSpawnNanos = 0;
+    /** How often to spawn a new Rotten Egg hazard (15 seconds). */
+    private static final long ROTTEN_EGG_SPAWN_INTERVAL_NANOS = 15_000_000_000L;
+
     /** Shared RNG — used for dough selection and hazard spawning. */
     private final Random rng = new Random();
 
@@ -232,6 +244,12 @@ public class GamePlayScreen {
         File iceFile = new File("assets/images/hazard/Ice-Hazard.png");
         if (iceFile.exists()) {
             iceSprite = new Image(iceFile.toURI().toString());
+        }
+
+        // --- H3 Rotten Egg hazard sprite ---
+        File reFile = new File("assets/images/hazard/RottenEgg-Hazard.png");
+        if (reFile.exists()) {
+            rottenEggSprite = new Image(reFile.toURI().toString());
         }
 
         // --- Starting territory centred on spawn ---
@@ -326,23 +344,29 @@ public class GamePlayScreen {
         if (screenW == 0)
             return;
 
-        // Smooth Direction
-        dirX += (targetDirX - dirX) * TURN_SMOOTHNESS;
-        dirY += (targetDirY - dirY) * TURN_SMOOTHNESS;
-
-        // re-normalize to keep constant speed
-        double len = Math.sqrt(dirX * dirX + dirY * dirY);
-        if (len > 0) {
-            dirX /= len;
-            dirY /= len;
-        }
-
         // --- Expire timed effects ---
         if (speedMultiplier != 1.0 && now >= speedEffectEndNanos) {
             speedMultiplier = 1.0;
         }
         if (isFrozen && now >= freezeEndNanos) {
             isFrozen = false;
+        }
+        if (isControlsReversed && now >= reverseEndNanos) {
+            isControlsReversed = false;
+        }
+
+        // Smooth Direction — inversion is applied here as a read-only local so
+        // neither the mouse handler nor updateDirection() need to know about H3.
+        double effectiveDirX = isControlsReversed ? -targetDirX : targetDirX;
+        double effectiveDirY = isControlsReversed ? -targetDirY : targetDirY;
+        dirX += (effectiveDirX - dirX) * TURN_SMOOTHNESS;
+        dirY += (effectiveDirY - dirY) * TURN_SMOOTHNESS;
+
+        // re-normalize to keep constant speed
+        double len = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (len > 0) {
+            dirX /= len;
+            dirY /= len;
         }
 
         // --- Move player (skipped while frozen; collision checks below still run) ---
@@ -369,6 +393,10 @@ public class GamePlayScreen {
             spawnIceHazard();
             lastIceSpawnNanos = now;
         }
+        if (lastRottenEggSpawnNanos == 0 || now - lastRottenEggSpawnNanos >= ROTTEN_EGG_SPAWN_INTERVAL_NANOS) {
+            spawnRottenEggHazard();
+            lastRottenEggSpawnNanos = now;
+        }
 
         // --- Pickup collision ---
         pickups.removeIf(p -> !p.isActive());
@@ -381,6 +409,9 @@ public class GamePlayScreen {
                 } else if (pickup instanceof FreezeHazard fh) {
                     isFrozen = true;
                     freezeEndNanos = now + (long) (fh.getEffectDurationSeconds() * 1_000_000_000L);
+                } else if (pickup instanceof ReverseControlsHazard rh) {
+                    isControlsReversed = true;
+                    reverseEndNanos = now + (long) (rh.getEffectDurationSeconds() * 1_000_000_000L);
                 }
             }
         }
@@ -474,6 +505,23 @@ public class GamePlayScreen {
         }
     }
 
+    /** Spawns a Rotten Egg (H3) hazard at a random arena position outside territory. */
+    private void spawnRottenEggHazard() {
+        if (rottenEggSprite == null)
+            return;
+        double maxR = WORLD_RADIUS * 0.85;
+        for (int attempt = 0; attempt < 20; attempt++) {
+            double angle = rng.nextDouble() * 2 * Math.PI;
+            double r = rng.nextDouble() * maxR;
+            double hx = Math.cos(angle) * r;
+            double hy = Math.sin(angle) * r;
+            if (!territoryManager.isInsideTerritory(hx, hy)) {
+                pickups.add(new ReverseControlsHazard(hx, hy, rottenEggSprite));
+                return;
+            }
+        }
+    }
+
     /**
      * Spawns an Ice Spill (H2) hazard at a random arena position outside territory.
      */
@@ -506,6 +554,7 @@ public class GamePlayScreen {
         pickups.clear();
         speedMultiplier = 1.0;
         isFrozen = false;
+        isControlsReversed = false;
         outsideTerritory = false;
         showGameOver();
     }
