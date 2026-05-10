@@ -28,10 +28,13 @@ public class TrailManager {
 
   // How many tail points to skip when checking self-collision (avoids false
   // positives with the segment right behind the player head)
-  private static final int SELF_COLLISION_SKIP = 12;
+  private static final int SELF_COLLISION_SKIP = 4;
 
-  // Distance threshold for self-collision detection
+  // Distance threshold for self-collision detection (point-based, used by enemy check)
   private static final double SELF_COLLISION_RADIUS = 8.0;
+
+  // Distance threshold for segment-based self-collision — matches half the visual trail width
+  private static final double COLLISION_RADIUS = LINE_WIDTH / 2;
 
   /**
    * Called every game frame.
@@ -65,6 +68,17 @@ public class TrailManager {
     return false;
   }
 
+  /** Perpendicular distance from point {@code p} to segment {@code a→b}. */
+  private static double distanceToSegment(Point2D p, Point2D a, Point2D b) {
+    double dx = b.getX() - a.getX();
+    double dy = b.getY() - a.getY();
+    double lenSq = dx * dx + dy * dy;
+    if (lenSq == 0) return p.distance(a);
+    double t = Math.max(0, Math.min(1,
+        ((p.getX() - a.getX()) * dx + (p.getY() - a.getY()) * dy) / lenSq));
+    return p.distance(new Point2D(a.getX() + t * dx, a.getY() + t * dy));
+  }
+
   /**
    * Check whether the player's head hits their own trail (self-collision).
    * Skips the most-recent {@code SELF_COLLISION_SKIP} points to avoid false
@@ -76,8 +90,29 @@ public class TrailManager {
 
     Point2D head = new Point2D(playerX, playerY);
     int limit = points.size() - SELF_COLLISION_SKIP;
-    for (int i = 0; i < limit; i++) {
-      if (points.get(i).distance(head) < SELF_COLLISION_RADIUS) {
+    for (int i = 0; i < limit - 1; i++) {
+      if (distanceToSegment(head, points.get(i), points.get(i + 1)) < COLLISION_RADIUS) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check whether an enemy player's head touches this trail.
+   * No skip zone — the full trail is a hazard to other players.
+   *
+   * @param px Enemy player world X
+   * @param py Enemy player world Y
+   * @return true if the enemy head is within collision radius of any trail point
+   */
+  public boolean checkEnemyCollision(double px, double py) {
+    if (!active || points.size() < 2)
+      return false;
+
+    Point2D head = new Point2D(px, py);
+    for (int i = 0; i < points.size() - 1; i++) {
+      if (distanceToSegment(head, points.get(i), points.get(i + 1)) < COLLISION_RADIUS) {
         return true;
       }
     }
