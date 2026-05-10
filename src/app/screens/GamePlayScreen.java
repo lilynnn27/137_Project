@@ -9,6 +9,7 @@ import java.util.Random;
 import java.util.Set;
 
 import app.Main;
+import app.game_logic.FreezeHazard;
 import app.game_logic.PickupEntity;
 import app.game_logic.SlowingHazard;
 import app.game_logic.TerritoryManager;
@@ -127,10 +128,21 @@ public class GamePlayScreen {
     private final List<PickupEntity> pickups = new ArrayList<>();
     /** Sprite for H1 Rolling Pin hazard; null if the file is missing. */
     private Image rollingPinSprite;
-    /** Nanosecond timestamp of the last hazard spawn (0 = none yet). */
+    /** Nanosecond timestamp of the last Rolling Pin spawn (0 = none yet). */
     private long lastHazardSpawnNanos = 0;
     /** How often to spawn a new Rolling Pin hazard (8 seconds). */
     private static final long HAZARD_SPAWN_INTERVAL_NANOS = 8_000_000_000L;
+
+    /** True while the player is frozen by H2 Ice Spill. */
+    private boolean isFrozen = false;
+    /** Nanosecond timestamp when the freeze effect expires. */
+    private long freezeEndNanos = 0;
+    /** Sprite for H2 Ice Spill hazard; null if the file is missing. */
+    private Image iceSprite;
+    /** Nanosecond timestamp of the last Ice Spill spawn (0 = none yet). */
+    private long lastIceSpawnNanos = 0;
+    /** How often to spawn a new Ice Spill hazard (12 seconds). */
+    private static final long ICE_SPAWN_INTERVAL_NANOS = 12_000_000_000L;
 
     /** Shared RNG — used for dough selection and hazard spawning. */
     private final Random rng = new Random();
@@ -216,6 +228,12 @@ public class GamePlayScreen {
             rollingPinSprite = new Image(rpFile.toURI().toString());
         }
 
+        // --- H2 Ice Spill hazard sprite ---
+        File iceFile = new File("assets/images/hazard/Ice-Hazard.png");
+        if (iceFile.exists()) {
+            iceSprite = new Image(iceFile.toURI().toString());
+        }
+
         // --- Starting territory centred on spawn ---
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
@@ -244,7 +262,7 @@ public class GamePlayScreen {
         root.getChildren().add(timerLabel);
 
         gameTimer = new Timer(
-                20, // seconds (set to desired game duration)
+                40, // seconds (set to desired game duration)
                 () -> javafx.application.Platform.runLater(
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {
@@ -319,14 +337,19 @@ public class GamePlayScreen {
             dirY /= len;
         }
 
-        // --- Expire speed effects ---
+        // --- Expire timed effects ---
         if (speedMultiplier != 1.0 && now >= speedEffectEndNanos) {
             speedMultiplier = 1.0;
         }
+        if (isFrozen && now >= freezeEndNanos) {
+            isFrozen = false;
+        }
 
-        // --- Move player ---
-        playerX += dirX * SPEED * speedMultiplier;
-        playerY += dirY * SPEED * speedMultiplier;
+        // --- Move player (skipped while frozen; collision checks below still run) ---
+        if (!isFrozen) {
+            playerX += dirX * SPEED * speedMultiplier;
+            playerY += dirY * SPEED * speedMultiplier;
+        }
 
         // Clamp inside arena
         double dist = Math.sqrt(playerX * playerX + playerY * playerY);
@@ -342,6 +365,10 @@ public class GamePlayScreen {
             spawnRollingPinHazard();
             lastHazardSpawnNanos = now;
         }
+        if (lastIceSpawnNanos == 0 || now - lastIceSpawnNanos >= ICE_SPAWN_INTERVAL_NANOS) {
+            spawnIceHazard();
+            lastIceSpawnNanos = now;
+        }
 
         // --- Pickup collision ---
         pickups.removeIf(p -> !p.isActive());
@@ -351,6 +378,9 @@ public class GamePlayScreen {
                 if (pickup instanceof SlowingHazard sh) {
                     speedMultiplier = SlowingHazard.SPEED_MULTIPLIER;
                     speedEffectEndNanos = now + (long) (sh.getEffectDurationSeconds() * 1_000_000_000L);
+                } else if (pickup instanceof FreezeHazard fh) {
+                    isFrozen = true;
+                    freezeEndNanos = now + (long) (fh.getEffectDurationSeconds() * 1_000_000_000L);
                 }
             }
         }
@@ -444,6 +474,25 @@ public class GamePlayScreen {
         }
     }
 
+    /**
+     * Spawns an Ice Spill (H2) hazard at a random arena position outside territory.
+     */
+    private void spawnIceHazard() {
+        if (iceSprite == null)
+            return;
+        double maxR = WORLD_RADIUS * 0.85;
+        for (int attempt = 0; attempt < 20; attempt++) {
+            double angle = rng.nextDouble() * 2 * Math.PI;
+            double r = rng.nextDouble() * maxR;
+            double hx = Math.cos(angle) * r;
+            double hy = Math.sin(angle) * r;
+            if (!territoryManager.isInsideTerritory(hx, hy)) {
+                pickups.add(new FreezeHazard(hx, hy, iceSprite));
+                return;
+            }
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Death
     // -----------------------------------------------------------------------
@@ -456,6 +505,7 @@ public class GamePlayScreen {
         territoryManager.clearTerritory();
         pickups.clear();
         speedMultiplier = 1.0;
+        isFrozen = false;
         outsideTerritory = false;
         showGameOver();
     }
