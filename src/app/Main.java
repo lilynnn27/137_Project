@@ -1,5 +1,6 @@
 package app;
 
+import app.network.GameClient;
 import app.screens.GamePlayScreen;
 import app.screens.LandingPageScreen;
 import app.screens.MultiplayerScreen;
@@ -11,35 +12,34 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 
-    private Stage window;
+    private Stage  window;
     private javafx.scene.Scene mainScene;
-    
+
     // Screen instances
-    private LandingPageScreen landingPage;
+    private LandingPageScreen  landingPage;
     private SinglePlayerScreen singlePlayer;
-    private MultiplayerScreen multiplayer;
+    private MultiplayerScreen  multiplayer;
 
     @Override
     public void start(Stage primaryStage) {
         this.window = primaryStage;
-        window.setTitle("137 Project - Networked Game");
+        window.setTitle("137 Project - The Tray");
 
-        // Initialize screens
-        landingPage = new LandingPageScreen(this);
+        landingPage  = new LandingPageScreen(this);
         singlePlayer = new SinglePlayerScreen(this);
-        multiplayer = new MultiplayerScreen(this);
+        multiplayer  = new MultiplayerScreen(this);
 
         mainScene = new javafx.scene.Scene(new javafx.scene.layout.Pane(), 1024, 768);
         window.setScene(mainScene);
 
-        // Start on the Landing Page
         showLandingPage();
-        
+
         window.setMaximized(true);
         window.show();
     }
 
-    // Methods to switch screens
+    // ── Screen transitions ────────────────────────────────────────────────
+
     public void showLandingPage() {
         mainScene.setRoot(landingPage.getRoot());
     }
@@ -49,32 +49,53 @@ public class Main extends Application {
     }
 
     public void showMultiplayer() {
+        // Re-create so lobby state is fresh each visit
+        multiplayer = new MultiplayerScreen(this);
         mainScene.setRoot(multiplayer.getRoot());
     }
-    
-    public javafx.stage.Stage getPrimaryStage(){
+
+    /** Launches the single-player game (random spawn, random color). */
+    public void showGamePlay() {
+        GamePlayScreen screen = new GamePlayScreen(this);
+        mainScene.setRoot(screen.getRoot());
+        screen.getRoot().requestFocus();
+    }
+
+    /**
+     * Launches the multiplayer game screen for this client.
+     *
+     * @param client     The connected {@link GameClient} (already joined).
+     * @param spawnX     World-space spawn X assigned by the server.
+     * @param spawnY     World-space spawn Y assigned by the server.
+     * @param colorHex   CSS hex color assigned by the server (e.g. "#FF7043").
+     * @param myPlayerId This client's player ID.
+     */
+    public void showMultiplayerGame(GameClient client,
+                                    double spawnX, double spawnY,
+                                    String colorHex, int myPlayerId) {
+        GamePlayScreen screen = new GamePlayScreen(this, client, spawnX, spawnY, colorHex, myPlayerId);
+        mainScene.setRoot(screen.getRoot());
+        screen.getRoot().requestFocus();
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────
+
+    public javafx.stage.Stage getPrimaryStage() {
         return window;
     }
 
-    public void showGamePlay(){
-        GamePlayScreen gamePlayScreen = new GamePlayScreen(this);
-        mainScene.setRoot(gamePlayScreen.getRoot());
-        gamePlayScreen.getRoot().requestFocus();
-    }
-
-    public void setBackgroundBlur(boolean apply){
-        if(apply){
-            GaussianBlur blur = new GaussianBlur(15); // Adjust radius for more/less blur
-            ColorAdjust darken = new ColorAdjust();
-            darken.setBrightness(-0.5); // Darken by 50%
-            
+    public void setBackgroundBlur(boolean apply) {
+        if (apply) {
+            GaussianBlur blur = new GaussianBlur(15);
+            ColorAdjust  darken = new ColorAdjust();
+            darken.setBrightness(-0.5);
             blur.setInput(darken);
             window.getScene().getRoot().setEffect(blur);
         } else {
             window.getScene().getRoot().setEffect(null);
         }
     }
-    
+
     public void exitGame() {
         window.close();
     }
@@ -82,5 +103,4 @@ public class Main extends Application {
     public static void main(String[] args) {
         launch(args);
     }
-
 }

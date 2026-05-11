@@ -16,7 +16,10 @@ import app.game_logic.SlowingHazard;
 import app.game_logic.TerritoryManager;
 import app.game_logic.Timer;
 import app.game_logic.TrailManager;
+import app.network.GameClient;
+import app.network.NetworkMessage.PlayerState;
 import javafx.animation.AnimationTimer;
+import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -53,6 +56,24 @@ public class GamePlayScreen {
 
     /** Player visual */
     private ImageView playerSprite;
+
+    // ---- Multiplayer networking ----
+    /** Non-null when running in multiplayer mode. */
+    private GameClient gameClient;
+    /** This client's player ID (assigned by server). -1 in single-player. */
+    private int myPlayerId = -1;
+    /**
+     * Canvases for remote players' territory + trails.
+     * One entry per remote player, keyed by their playerId.
+     */
+    private final java.util.Map<Integer, Canvas>       remoteOverlays  = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, ImageView>    remoteSprites   = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, TrailManager> remoteTrails    = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, TerritoryManager> remoteTerritories = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, Color>        remoteColors    = new java.util.LinkedHashMap<>();
+    /** How many frames to skip between network sends (send every Nth frame). */
+    private static final int NET_SEND_INTERVAL = 3;
+    private int netFrameCounter = 0;
 
     /** Player world-space position */
     private double playerX = 0;
@@ -169,6 +190,50 @@ public class GamePlayScreen {
     // Constructor / Setup
     // -----------------------------------------------------------------------
 
+    /**
+     * Multiplayer constructor — spawns at server-assigned position with a
+     * fixed color, and sends position updates to the server each frame.
+     *
+     * @param mainApp    The main application.
+     * @param client     Already-connected {@link GameClient}.
+     * @param spawnX     World-space X assigned by the server.
+     * @param spawnY     World-space Y assigned by the server.
+     * @param colorHex   CSS color string (e.g. "#FF7043").
+     * @param myPlayerId This client's ID.
+     */
+    public GamePlayScreen(Main mainApp, GameClient client,
+                          double spawnX, double spawnY,
+                          String colorHex, int myPlayerId) {
+        this(mainApp); // Runs the full single-player setup first
+
+        // Override defaults set by the single-player constructor
+        this.gameClient  = client;
+        this.myPlayerId  = myPlayerId;
+
+        // Teleport to server-assigned spawn
+        this.playerX = spawnX;
+        this.playerY = spawnY;
+        if (playerSprite != null) {
+            playerSprite.setX(playerX - 50);
+            playerSprite.setY(playerY - 50);
+        }
+
+        // Re-init territory at the correct spawn (single-player init used 0,0)
+        territoryManager.clearTerritory();
+        territoryManager.initStartingTerritory(playerX, playerY, 70);
+
+        // Register the GAME_STATE callback — runs on network thread, touch UI on FX thread
+        client.onGameState(states -> Platform.runLater(() -> applyRemoteStates(states)));
+        client.onPlayerDied(deadId -> Platform.runLater(() -> removeRemotePlayer(deadId)));
+        client.onGameOver(results -> Platform.runLater(() -> {
+            if (!isDead) {
+                isDead = true;
+                showMultiplayerGameOver(results);
+            }
+        }));
+    }
+
+    /** Single-player constructor (original). */
     public GamePlayScreen(Main mainApp) {
         this.mainApp = mainApp;
 
@@ -478,6 +543,21 @@ public class GamePlayScreen {
 
         powerUpBar.setLayoutX((screenW / 2) - 150);
         powerUpBar.setLayoutY(screenH - 50);
+
+        // --- Multiplayer: send position to server every NET_SEND_INTERVAL frames ---
+        if (gameClient != null && gameClient.isConnected()) {
+            netFrameCounter++;
+            if (netFrameCounter >= NET_SEND_INTERVAL) {
+                netFrameCounter = 0;
+                List<Point2D> trailPts = trailManager.getTrailPoints();
+                double[] packed = new double[trailPts.size() * 2];
+                for (int i = 0; i < trailPts.size(); i++) {
+                    packed[i * 2]     = trailPts.get(i).getX();
+                    packed[i * 2 + 1] = trailPts.get(i).getY();
+                }
+                gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, areaFraction * 100);
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -637,6 +717,160 @@ public class GamePlayScreen {
                 }
             }
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Multiplayer — remote player rendering
+    // -----------------------------------------------------------------------
+
+    /**
+     * Called on the JavaFX thread every time the server sends a GAME_STATE.
+     * Updates or creates sprites/overlays for every remote player.
+     */
+    private void applyRemoteStates(java.util.List<PlayerState> states) {
+        for (PlayerState state : states) {
+            if (state.playerId == myPlayerId) continue; // skip self
+            if (state.isDead) {
+                removeRemotePlayer(state.playerId);
+                continue;
+            }
+
+            Color color = remoteColors.computeIfAbsent(state.playerId,
+                id -> Color.web(state.colorHex));
+
+            // ── Sprite ──────────────────────────────────────────────────
+            ImageView sprite = remoteSprites.get(state.playerId);
+            if (sprite == null) {
+                sprite = createRemoteSprite(state.colorHex);
+                remoteSprites.put(state.playerId, sprite);
+                world.getChildren().add(sprite);
+            }
+            sprite.setX(state.x - 50);
+            sprite.setY(state.y - 50);
+
+            // ── Trail ───────────────────────────────────────────────────
+            TrailManager trail = remoteTrails.computeIfAbsent(
+                state.playerId, id -> new TrailManager());
+
+            // Sync trail points from packed array
+            trail.clear();
+            if (state.trailPoints != null && state.trailPoints.length >= 4) {
+                // Inject points by calling update() repeatedly is complex; instead
+                // we draw from the raw packed array directly below.
+            }
+
+            // ── Territory overlay ───────────────────────────────────────
+            Canvas overlay = remoteOverlays.get(state.playerId);
+            if (overlay == null) {
+                overlay = new Canvas(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
+                overlay.setTranslateX(-WORLD_RADIUS);
+                overlay.setTranslateY(-WORLD_RADIUS);
+                // Insert behind the local player's overlay
+                int localOverlayIdx = world.getChildren().indexOf(overlayCanvas);
+                world.getChildren().add(Math.max(0, localOverlayIdx), overlay);
+                remoteOverlays.put(state.playerId, overlay);
+            }
+
+            // Draw remote trail from packed points
+            GraphicsContext gc = overlay.getGraphicsContext2D();
+            gc.clearRect(0, 0, overlay.getWidth(), overlay.getHeight());
+            gc.save();
+            gc.translate(WORLD_RADIUS, WORLD_RADIUS);
+            drawRemoteTrail(gc, state.trailPoints, color);
+            gc.restore();
+
+            // ── Enemy trail collision (self → die if touching their trail) ──
+            if (trailManager.isActive() && state.trailPoints != null && state.trailPoints.length >= 4) {
+                if (checkEnemyTrailCollision(playerX, playerY, state.trailPoints)) {
+                    handleDeath();
+                    return;
+                }
+            }
+        }
+    }
+
+    /** Draws a remote player's trail from the server's packed double[] array. */
+    private void drawRemoteTrail(GraphicsContext gc, double[] packed, Color color) {
+        if (packed == null || packed.length < 4) return;
+        gc.save();
+        gc.setLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
+        gc.setLineJoin(javafx.scene.shape.StrokeLineJoin.ROUND);
+        gc.setGlobalAlpha(0.5);
+        gc.setStroke(color);
+        gc.setLineWidth(28.0);
+        gc.beginPath();
+        gc.moveTo(packed[0], packed[1]);
+        for (int i = 2; i < packed.length - 1; i += 2) {
+            gc.lineTo(packed[i], packed[i + 1]);
+        }
+        gc.stroke();
+        gc.restore();
+    }
+
+    /** True if the local player's head is within collision distance of an enemy trail. */
+    private boolean checkEnemyTrailCollision(double px, double py, double[] packed) {
+        final double RADIUS = 14.0;
+        Point2D head = new Point2D(px, py);
+        for (int i = 0; i < packed.length - 3; i += 2) {
+            Point2D a = new Point2D(packed[i],     packed[i + 1]);
+            Point2D b = new Point2D(packed[i + 2], packed[i + 3]);
+            double dx = b.getX() - a.getX(), dy = b.getY() - a.getY();
+            double lenSq = dx * dx + dy * dy;
+            double t = lenSq == 0 ? 0 : Math.max(0, Math.min(1,
+                ((px - a.getX()) * dx + (py - a.getY()) * dy) / lenSq));
+            Point2D proj = new Point2D(a.getX() + t * dx, a.getY() + t * dy);
+            if (head.distance(proj) < RADIUS) return true;
+        }
+        return false;
+    }
+
+    /** Creates an ImageView for a remote player sprite using the color-matched dough image. */
+    private ImageView createRemoteSprite(String colorHex) {
+        String[] names  = { "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo" };
+        String dough    = names[Math.abs(colorHex.hashCode()) % names.length];
+        File   imgFile  = new File("assets/images/PlayersDough/" + dough + ".png");
+        ImageView iv    = new ImageView();
+        if (imgFile.exists()) {
+            iv.setImage(new Image(imgFile.toURI().toString()));
+        }
+        iv.setFitWidth(100);
+        iv.setFitHeight(100);
+        iv.setPreserveRatio(true);
+        return iv;
+    }
+
+    /** Removes all visual elements for a player that has died or disconnected. */
+    private void removeRemotePlayer(int playerId) {
+        ImageView sprite = remoteSprites.remove(playerId);
+        if (sprite != null) world.getChildren().remove(sprite);
+
+        Canvas overlay = remoteOverlays.remove(playerId);
+        if (overlay != null) world.getChildren().remove(overlay);
+
+        remoteTrails.remove(playerId);
+        remoteColors.remove(playerId);
+    }
+
+    /**
+     * Shows the game-over screen with the server-provided leaderboard.
+     * Used in multiplayer mode instead of the single-player GameOverModal.
+     */
+    private void showMultiplayerGameOver(java.util.List<app.network.NetworkMessage.GameResult> results) {
+        gameTimer.stop();
+        gameLoop.stop();
+        if (gameClient != null) gameClient.disconnect();
+
+        // Re-use GameOverModal but pass the top player's score for now.
+        // You can extend GameOverModal later to show the full leaderboard.
+        int myScore = 0;
+        for (app.network.NetworkMessage.GameResult r : results) {
+            if (r.playerId == myPlayerId) {
+                myScore = (int) r.territoryPercent;
+                break;
+            }
+        }
+        GameOverModal modal = new GameOverModal(mainApp, myScore, 100);
+        modal.show();
     }
 
     // -----------------------------------------------------------------------

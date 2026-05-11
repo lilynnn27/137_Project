@@ -1,0 +1,408 @@
+package app.network;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import app.network.NetworkMessage.GameResult;
+import app.network.NetworkMessage.LobbyPlayer;
+import app.network.NetworkMessage.PlayerState;
+
+/**
+ * GameServer — the authoritative server for one match of The Tray.
+ *
+ * Lifecycle:
+ *   1. {@link #start()} opens the ServerSocket and begins accepting clients.
+ *   2. Clients connect and send PLAYER_JOIN → lobby roster is broadcast.
+ *   3. Once ≥ {@link #MIN_PLAYERS} clients are all ready, the game begins.
+ *   4. During gameplay, position updates are collected and re-broadcast as a
+ *      GAME_STATE snapshot at ~20 Hz.
+ *   5. When the game timer expires, a GAME_OVER message is broadcast and the
+ *      server shuts down.
+ *
+ * Threading model:
+ *   - One thread per client (inside {@link ClientHandler}).
+ *   - One ScheduledExecutorService for the game-state broadcast loop.
+ *   - All shared state is guarded by {@code synchronized(clients)} or uses
+ *     concurrent collections.
+ */
+public class GameServer {
+
+    // ------------------------------------------------------------------
+    // Constants
+    // ------------------------------------------------------------------
+
+    public static final int DEFAULT_PORT    = 5555;
+    public static final int MIN_PLAYERS     = 2;
+    public static final int MAX_PLAYERS     = 8;
+
+    /** Game duration in seconds. Must match GamePlayScreen timer. */
+    private static final int GAME_DURATION_SECONDS = 40;
+
+    /** How often the server broadcasts a GAME_STATE snapshot (milliseconds). */
+    private static final long BROADCAST_INTERVAL_MS = 50; // ~20 Hz
+
+    /**
+     * Dough colors assigned in join order.
+     * Matches the color map in GamePlayScreen so sprites stay consistent.
+     */
+    private static final String[] PLAYER_COLORS = {
+        "#FF7043", // orange
+        "#1E88E5", // blue
+        "#43A047", // green
+        "#E53935", // red
+        "#FDD835", // yellow
+        "#EC407A", // pink
+        "#8E24AA", // purple
+        "#3949AB"  // indigo
+    };
+
+    /**
+     * Spawn angles (degrees) for up to 8 players, evenly distributed around
+     * the arena so no two players start adjacent.
+     */
+    private static final double[] SPAWN_ANGLES_DEG = {
+        0, 180, 90, 270,   // 4 players: E, W, N, S
+        45, 225, 135, 315  // 5-8 players: NE, SW, NW, SE
+    };
+
+    /** Spawn radius — 60 % of the arena radius. */
+    private static final double SPAWN_RADIUS = 1500 * 0.60; // = 900
+
+    // ------------------------------------------------------------------
+    // State
+    // ------------------------------------------------------------------
+
+    private final int port;
+
+    /** All currently connected handlers. Thread-safe list for iteration. */
+    private final CopyOnWriteArrayList<ClientHandler> clients =
+            new CopyOnWriteArrayList<>();
+
+    /**
+     * Latest position snapshot per playerId.
+     * Written by ClientHandler threads; read by the broadcast scheduler.
+     */
+    private final Map<Integer, PlayerState> latestStates =
+            Collections.synchronizedMap(new LinkedHashMap<>());
+
+    /** Set of playerIds that have signalled "ready" in the lobby. */
+    private final List<Integer> readyPlayers = new CopyOnWriteArrayList<>();
+
+    private final AtomicInteger nextPlayerId = new AtomicInteger(1);
+
+    private ServerSocket serverSocket;
+    private volatile boolean accepting = true;  // accept-loop flag
+    private volatile boolean gameStarted = false;
+
+    private ScheduledExecutorService broadcastScheduler;
+
+    // ------------------------------------------------------------------
+    // Constructor
+    // ------------------------------------------------------------------
+
+    public GameServer(int port) {
+        this.port = port;
+    }
+
+    public GameServer() {
+        this(DEFAULT_PORT);
+    }
+
+    // ------------------------------------------------------------------
+    // Lifecycle
+    // ------------------------------------------------------------------
+
+    /**
+     * Opens the server socket and blocks accepting clients on the calling
+     * thread until {@link #stop()} is called or an I/O error occurs.
+     *
+     * Call this from a dedicated thread so the UI stays responsive:
+     * <pre>
+     *   new Thread(() -> server.start()).start();
+     * </pre>
+     */
+    public void start() {
+        try {
+            serverSocket = new ServerSocket(port);
+            System.out.println("[Server] Listening on port " + port);
+
+            while (accepting) {
+                try {
+                    Socket clientSocket = serverSocket.accept();
+
+                    if (gameStarted) {
+                        // Reject late-joiners
+                        clientSocket.close();
+                        continue;
+                    }
+
+                    if (clients.size() >= MAX_PLAYERS) {
+                        System.out.println("[Server] Lobby full — rejected a connection.");
+                        clientSocket.close();
+                        continue;
+                    }
+
+                    ClientHandler handler = new ClientHandler(clientSocket, this);
+                    clients.add(handler);
+                    new Thread(handler, "ClientHandler-" + clients.size()).start();
+
+                } catch (IOException e) {
+                    if (accepting) {
+                        System.out.println("[Server] Accept error: " + e.getMessage());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("[Server] Could not open port " + port + ": " + e.getMessage());
+        }
+    }
+
+    /** Shuts down the server gracefully. */
+    public void stop() {
+        accepting = false;
+        if (broadcastScheduler != null) broadcastScheduler.shutdownNow();
+        for (ClientHandler c : clients) c.disconnect();
+        try { if (serverSocket != null) serverSocket.close(); } catch (IOException ignored) {}
+        System.out.println("[Server] Stopped.");
+    }
+
+    // ------------------------------------------------------------------
+    // Event handlers — called by ClientHandler threads
+    // ------------------------------------------------------------------
+
+    /**
+     * A new client has sent PLAYER_JOIN.
+     * Assigns an ID + color, adds to roster, broadcasts LOBBY_UPDATE.
+     */
+    public synchronized void onPlayerJoin(ClientHandler handler) {
+        int id = nextPlayerId.getAndIncrement();
+        handler.setPlayerId(id);
+
+        String color = PLAYER_COLORS[(id - 1) % PLAYER_COLORS.length];
+
+        // Send the assigned id/color back to this client as a LOBBY_UPDATE
+        // (the client reads its own id from the first slot matching its name)
+        System.out.println("[Server] Player joined: " + handler.getPlayerName()
+                           + " → id=" + id + " color=" + color);
+
+        // Seed an empty state so the player appears in broadcasts immediately
+        latestStates.put(id, new PlayerState(
+            id, handler.getPlayerName(), color,
+            0, 0, 1, 0, new double[0], false, 0.0
+        ));
+
+        broadcastLobbyUpdate();
+    }
+
+    /** A client toggled "ready". Check if we can start. */
+    public synchronized void onPlayerReady(ClientHandler handler) {
+        int id = handler.getPlayerId();
+        if (!readyPlayers.contains(id)) {
+            readyPlayers.add(id);
+        } else {
+            readyPlayers.remove((Integer) id); // toggle off
+        }
+        System.out.println("[Server] Player " + id + " ready=" + readyPlayers.contains(id));
+        broadcastLobbyUpdate();
+        checkStartCondition();
+    }
+
+    /** Received a POSITION_UPDATE from a client — store it. */
+    public void onPositionUpdate(ClientHandler handler, NetworkMessage msg) {
+        if (!gameStarted) return;
+
+        int id = handler.getPlayerId();
+        PlayerState existing = latestStates.get(id);
+        String color  = existing != null ? existing.colorHex  : "#FFFFFF";
+        String name   = existing != null ? existing.playerName : handler.getPlayerName();
+
+        latestStates.put(id, new PlayerState(
+            id, name, color,
+            msg.x, msg.y, msg.dirX, msg.dirY,
+            msg.trailPoints != null ? msg.trailPoints : new double[0],
+            false,
+            msg.territoryPercent
+        ));
+    }
+
+    /** A client's socket closed (crash, disconnect, etc.). */
+    public synchronized void onClientDisconnected(ClientHandler handler) {
+        clients.remove(handler);
+        int id = handler.getPlayerId();
+        if (id != -1) {
+            latestStates.remove(id);
+            readyPlayers.remove((Integer) id);
+            System.out.println("[Server] Player " + id + " left the game.");
+            if (!gameStarted) {
+                broadcastLobbyUpdate();
+            } else {
+                broadcast(NetworkMessage.playerDied(id));
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Lobby helpers
+    // ------------------------------------------------------------------
+
+    /** Broadcasts the current lobby roster to every connected client. */
+    private void broadcastLobbyUpdate() {
+        List<LobbyPlayer> roster = buildRoster();
+        NetworkMessage msg = NetworkMessage.lobbyUpdate(roster);
+        // Also embed each client's own playerId so they can self-identify.
+        // We send a per-client copy with playerId set.
+        for (ClientHandler c : clients) {
+            NetworkMessage personal = NetworkMessage.lobbyUpdate(roster);
+            personal.playerId = c.getPlayerId();
+            c.send(personal);
+        }
+    }
+
+    private List<LobbyPlayer> buildRoster() {
+        List<LobbyPlayer> list = new ArrayList<>();
+        for (ClientHandler c : clients) {
+            int id = c.getPlayerId();
+            if (id == -1) continue; // not yet joined
+            PlayerState state = latestStates.get(id);
+            String color = state != null ? state.colorHex : "#FFFFFF";
+            list.add(new LobbyPlayer(id, c.getPlayerName(), color,
+                                     readyPlayers.contains(id)));
+        }
+        return list;
+    }
+
+    /**
+     * Checks whether all connected players (≥ MIN_PLAYERS) are ready.
+     * If so, kicks off the game.
+     */
+    private void checkStartCondition() {
+        if (gameStarted) return;
+        int connected = (int) clients.stream().filter(c -> c.getPlayerId() != -1).count();
+        if (connected >= MIN_PLAYERS && readyPlayers.size() >= connected) {
+            startGame();
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Game start
+    // ------------------------------------------------------------------
+
+    private synchronized void startGame() {
+        if (gameStarted) return;
+        gameStarted = true;
+        System.out.println("[Server] Starting game with " + clients.size() + " players!");
+
+        List<LobbyPlayer> roster = buildRoster();
+
+        int slot = 0;
+        for (ClientHandler c : clients) {
+            int id = c.getPlayerId();
+            if (id == -1) continue;
+
+            // Assign spawn position based on join order
+            double angleDeg = SPAWN_ANGLES_DEG[slot % SPAWN_ANGLES_DEG.length];
+            double angleRad = Math.toRadians(angleDeg);
+            double spawnX   = Math.cos(angleRad) * SPAWN_RADIUS;
+            double spawnY   = Math.sin(angleRad) * SPAWN_RADIUS;
+
+            PlayerState state = latestStates.get(id);
+            String color = state != null ? state.colorHex : "#FFFFFF";
+
+            // Update stored state with proper spawn coords
+            latestStates.put(id, new PlayerState(
+                id, c.getPlayerName(), color,
+                spawnX, spawnY, 0, -1, new double[0], false, 0.0
+            ));
+
+            c.send(NetworkMessage.startGame(id, spawnX, spawnY, color, roster));
+            slot++;
+        }
+
+        // Start the state-broadcast loop (~20 Hz)
+        broadcastScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "BroadcastLoop");
+            t.setDaemon(true);
+            return t;
+        });
+        broadcastScheduler.scheduleAtFixedRate(
+            this::broadcastGameState,
+            0, BROADCAST_INTERVAL_MS, TimeUnit.MILLISECONDS
+        );
+
+        // Schedule game-over after the configured duration
+        broadcastScheduler.schedule(
+            this::endGame,
+            GAME_DURATION_SECONDS, TimeUnit.SECONDS
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // In-game broadcast
+    // ------------------------------------------------------------------
+
+    private void broadcastGameState() {
+        List<PlayerState> snapshot;
+        synchronized (latestStates) {
+            snapshot = new ArrayList<>(latestStates.values());
+        }
+        broadcast(NetworkMessage.gameState(snapshot));
+    }
+
+    // ------------------------------------------------------------------
+    // Game over
+    // ------------------------------------------------------------------
+
+    private void endGame() {
+        System.out.println("[Server] Game over — computing results.");
+        broadcastScheduler.shutdown();
+
+        List<GameResult> results = new ArrayList<>();
+        synchronized (latestStates) {
+            for (PlayerState s : latestStates.values()) {
+                results.add(new GameResult(s.playerId, s.playerName,
+                                           s.colorHex, s.territoryPercent, 0));
+            }
+        }
+
+        // Sort descending by territory, assign ranks
+        results.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+        for (int i = 0; i < results.size(); i++) {
+            results.get(i).rank = i + 1;
+        }
+
+        broadcast(NetworkMessage.gameOver(results));
+
+        // Give clients a moment to receive the message before closing
+        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+        stop();
+    }
+
+    // ------------------------------------------------------------------
+    // Broadcast helper
+    // ------------------------------------------------------------------
+
+    /** Sends a message to all connected clients. */
+    private void broadcast(NetworkMessage msg) {
+        for (ClientHandler c : clients) {
+            c.send(msg);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Utility
+    // ------------------------------------------------------------------
+
+    public boolean isGameStarted() { return gameStarted; }
+    public int getConnectedCount()  { return clients.size(); }
+}
