@@ -9,6 +9,7 @@ import java.util.Random;
 import java.util.Set;
 
 import app.Main;
+import app.game_hud.StatOverlay;
 import app.game_logic.FreezeHazard;
 import app.game_logic.PickupEntity;
 import app.game_logic.ReverseControlsHazard;
@@ -133,6 +134,11 @@ public class GamePlayScreen {
     private final ProgressBar powerUpBar;
     private Label timerLabel;
 
+    private String myPlayerName = "You";
+    private StatOverlay statOverlay;
+    private final Map<Integer, Double> remoteTerritoryPercents = new java.util.LinkedHashMap<>();
+    private final Map<Integer, String> remotePlayerNames       = new java.util.LinkedHashMap<>();
+
     /** Hex ownership counters (used by GameOverModal). */
     private int ownedHexCount = 0;
     private final int totalHexCount = 1000;
@@ -207,8 +213,9 @@ public class GamePlayScreen {
         this(mainApp); // Runs the full single-player setup first
 
         // Override defaults set by the single-player constructor
-        this.gameClient  = client;
-        this.myPlayerId  = myPlayerId;
+        this.gameClient    = client;
+        this.myPlayerId    = myPlayerId;
+        this.myPlayerName  = client.getPlayerName();
 
         // Teleport to server-assigned spawn
         this.playerX = spawnX;
@@ -336,6 +343,10 @@ public class GamePlayScreen {
         powerUpBar = new ProgressBar(0);
         powerUpBar.setPrefWidth(300);
         root.getChildren().add(powerUpBar);
+
+        // --- Leaderboard overlay ---
+        statOverlay = new StatOverlay();
+        root.getChildren().add(statOverlay.getRoot());
 
         // --- Timer HUD (from develop branch) ---
         timerLabel = new Label("Time: 00:00");
@@ -541,6 +552,17 @@ public class GamePlayScreen {
         territoryLabel.setLayoutX(screenW - 230);
         territoryLabel.setLayoutY(20);
 
+        // --- Leaderboard update (every tick) ---
+        List<StatOverlay.PlayerEntry> leaderboard = new ArrayList<>();
+        leaderboard.add(new StatOverlay.PlayerEntry(myPlayerName, PLAYER_COLOR, areaFraction * 100));
+        for (Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
+            double pct  = remoteTerritoryPercents.getOrDefault(entry.getKey(), 0.0);
+            String name = remotePlayerNames.getOrDefault(entry.getKey(), "Player " + entry.getKey());
+            leaderboard.add(new StatOverlay.PlayerEntry(name, entry.getValue(), pct));
+        }
+        leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+        statOverlay.update(leaderboard);
+
         powerUpBar.setLayoutX((screenW / 2) - 150);
         powerUpBar.setLayoutY(screenH - 50);
 
@@ -738,6 +760,11 @@ public class GamePlayScreen {
             Color color = remoteColors.computeIfAbsent(state.playerId,
                 id -> Color.web(state.colorHex));
 
+            remoteTerritoryPercents.put(state.playerId, state.territoryPercent);
+            if (state.playerName != null && !state.playerName.isEmpty()) {
+                remotePlayerNames.put(state.playerId, state.playerName);
+            }
+
             // ── Sprite ──────────────────────────────────────────────────
             ImageView sprite = remoteSprites.get(state.playerId);
             if (sprite == null) {
@@ -849,6 +876,8 @@ public class GamePlayScreen {
 
         remoteTrails.remove(playerId);
         remoteColors.remove(playerId);
+        remoteTerritoryPercents.remove(playerId);
+        remotePlayerNames.remove(playerId);
     }
 
     /**
