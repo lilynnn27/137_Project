@@ -10,6 +10,7 @@ import java.util.Set;
 
 import app.Main;
 import app.game_hud.StatOverlay;
+import app.utils.UIUtils;
 import app.game_logic.FreezeHazard;
 import app.game_logic.PickupEntity;
 import app.game_logic.ReverseControlsHazard;
@@ -32,6 +33,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.text.Font;
 
 public class GamePlayScreen {
 
@@ -328,13 +330,6 @@ public class GamePlayScreen {
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
         // --- HUD ---
-        Label instructions = new Label("WASD / Arrows to move · ESC to exit");
-        instructions.setStyle(
-                "-fx-text-fill: white; -fx-font-size: 18px; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
-        instructions.setLayoutX(10);
-        instructions.setLayoutY(10);
-        root.getChildren().add(instructions);
-
         territoryLabel = new Label("Territory: 0.0%");
         territoryLabel.setStyle(
                 "-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
@@ -350,9 +345,8 @@ public class GamePlayScreen {
 
         // --- Timer HUD (from develop branch) ---
         timerLabel = new Label("Time: 00:00");
-        timerLabel.setStyle("-fx-text-fill: white; -fx-font-size: 24px;");
-        timerLabel.setLayoutX(20);
-        timerLabel.setLayoutY(50);
+        timerLabel.setFont(Font.font(UIUtils.MAIN_FONT, 24));
+        timerLabel.setStyle("-fx-text-fill: white; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
         root.getChildren().add(timerLabel);
 
         gameTimer = new Timer(
@@ -562,6 +556,9 @@ public class GamePlayScreen {
         }
         leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
         statOverlay.update(leaderboard);
+
+        timerLabel.setLayoutX((screenW - timerLabel.getWidth()) / 2);
+        timerLabel.setLayoutY(14);
 
         powerUpBar.setLayoutX((screenW / 2) - 150);
         powerUpBar.setLayoutY(screenH - 50);
