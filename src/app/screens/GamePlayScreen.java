@@ -22,15 +22,19 @@ import app.network.GameClient;
 import app.network.NetworkMessage.PlayerState;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
@@ -140,6 +144,10 @@ public class GamePlayScreen {
     private StatOverlay statOverlay;
     private final Map<Integer, Double> remoteTerritoryPercents = new java.util.LinkedHashMap<>();
     private final Map<Integer, String> remotePlayerNames       = new java.util.LinkedHashMap<>();
+
+    private VBox    chatBox;
+    private VBox    chatMessageArea;
+    private boolean chatExpanded = false;
 
     /** Hex ownership counters (used by GameOverModal). */
     private int ownedHexCount = 0;
@@ -362,6 +370,52 @@ public class GamePlayScreen {
                 });
         gameTimer.start();
 
+        // --- Chat box (bottom-right, collapsible) ---
+        chatMessageArea = new VBox(4);
+        chatMessageArea.setPadding(new Insets(6, 8, 6, 8));
+
+        Label chatPlaceholder = new Label("No messages yet");
+        chatPlaceholder.setFont(Font.font(UIUtils.MAIN_FONT, 13));
+        chatPlaceholder.setStyle("-fx-text-fill: #666666;");
+        chatMessageArea.getChildren().add(chatPlaceholder);
+
+        // TODO: wire in multiplayer messages here —
+        //   add Label entries to chatMessageArea when the network layer delivers chat events
+
+        ScrollPane chatScroll = new ScrollPane(chatMessageArea);
+        chatScroll.setPrefWidth(256);
+        chatScroll.setPrefHeight(180);
+        chatScroll.setFitToWidth(true);
+        chatScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        chatScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        chatScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        chatScroll.setVisible(false);
+        chatScroll.setManaged(false);
+
+        Button chatToggle = new Button("Chat ▲");
+        chatToggle.setFont(Font.font(UIUtils.MAIN_FONT, 14));
+        chatToggle.setStyle(
+            "-fx-background-color: rgba(0,0,0,0.65);" +
+            "-fx-text-fill: #f0d090;" +
+            "-fx-background-radius: 6;" +
+            "-fx-padding: 4 12;" +
+            "-fx-cursor: hand;");
+        chatToggle.setMaxWidth(Double.MAX_VALUE);
+        chatToggle.setOnAction(e -> {
+            chatExpanded = !chatExpanded;
+            chatScroll.setVisible(chatExpanded);
+            chatScroll.setManaged(chatExpanded);
+            chatToggle.setText(chatExpanded ? "Chat ▼" : "Chat ▲");
+            root.requestFocus();  // return focus to game after button click
+        });
+
+        chatBox = new VBox(0, chatScroll, chatToggle);
+        chatBox.setStyle(
+            "-fx-background-color: rgba(0,0,0,0.55);" +
+            "-fx-background-radius: 10;");
+        chatBox.setPrefWidth(260);
+        root.getChildren().add(chatBox);
+
         // --- Input ---
         root.setFocusTraversable(true);
 
@@ -562,6 +616,9 @@ public class GamePlayScreen {
 
         powerUpBar.setLayoutX((screenW / 2) - 150);
         powerUpBar.setLayoutY(screenH - 50);
+
+        chatBox.setLayoutX(screenW - chatBox.getPrefWidth() - 14);
+        chatBox.setLayoutY(screenH - chatBox.getHeight() - 14);
 
         // --- Multiplayer: send position to server every NET_SEND_INTERVAL frames ---
         if (gameClient != null && gameClient.isConnected()) {
