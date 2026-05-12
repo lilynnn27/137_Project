@@ -33,8 +33,11 @@ public class TrailManager {
   // Distance threshold for self-collision detection (point-based, used by enemy check)
   private static final double SELF_COLLISION_RADIUS = 8.0;
 
-  // Distance threshold for segment-based self-collision — matches half the visual trail width
-  private static final double COLLISION_RADIUS = LINE_WIDTH / 2;
+  private double widthMultiplier = 1.0;
+
+  public void setWidthMultiplier(double m) {
+    this.widthMultiplier = m;
+  }
 
   /**
    * Called every game frame.
@@ -88,10 +91,12 @@ public class TrailManager {
     if (points.size() < SELF_COLLISION_SKIP + 2)
       return false;
 
+    double currentCollisionRadius = (LINE_WIDTH * widthMultiplier) / 2.0;
+
     Point2D head = new Point2D(playerX, playerY);
     int limit = points.size() - SELF_COLLISION_SKIP;
     for (int i = 0; i < limit - 1; i++) {
-      if (distanceToSegment(head, points.get(i), points.get(i + 1)) < COLLISION_RADIUS) {
+      if (distanceToSegment(head, points.get(i), points.get(i + 1)) < currentCollisionRadius) {
         return true;
       }
     }
@@ -110,9 +115,11 @@ public class TrailManager {
     if (!active || points.size() < 2)
       return false;
 
+    double currentCollisionRadius = (LINE_WIDTH * widthMultiplier) / 2.0;
+
     Point2D head = new Point2D(px, py);
     for (int i = 0; i < points.size() - 1; i++) {
-      if (distanceToSegment(head, points.get(i), points.get(i + 1)) < COLLISION_RADIUS) {
+      if (distanceToSegment(head, points.get(i), points.get(i + 1)) < currentCollisionRadius) {
         return true;
       }
     }
@@ -156,7 +163,7 @@ public class TrailManager {
     // Trail at 50% transparency in the player's dough color
     gc.setGlobalAlpha(0.5);
     gc.setStroke(color);
-    gc.setLineWidth(LINE_WIDTH);
+    gc.setLineWidth(LINE_WIDTH * widthMultiplier);
     gc.beginPath();
     gc.moveTo(points.get(0).getX(), points.get(0).getY());
     for (int i = 1; i < points.size(); i++) {
