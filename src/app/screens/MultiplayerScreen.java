@@ -11,6 +11,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -29,12 +30,12 @@ import java.util.List;
  * MultiplayerScreen — the networked lobby.
  *
  * Two modes selectable by the player:
- *   HOST   — starts a {@link GameServer} on this machine, then connects as
- *             the first client.
- *   JOIN   — connects to a server already running on another machine.
+ * HOST — starts a {@link GameServer} on this machine, then connects as
+ * the first client.
+ * JOIN — connects to a server already running on another machine.
  *
  * Once connected the lobby shows live player slots populated by LOBBY_UPDATE
- * messages from the server.  When the server sends START_GAME, the screen
+ * messages from the server. When the server sends START_GAME, the screen
  * transitions to the multiplayer gameplay screen.
  */
 public class MultiplayerScreen {
@@ -44,40 +45,52 @@ public class MultiplayerScreen {
     // ------------------------------------------------------------------
 
     private static final String[] DOUGH_FILES = {
-        "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo"
+            "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo"
     };
 
     // ------------------------------------------------------------------
     // State
     // ------------------------------------------------------------------
 
-    private final VBox  root;
-    private final Main  mainApp;
+    private final StackPane root;
+    private final VBox mainLayout;
+    private final Main mainApp;
 
-    private GameClient  client;
-    private Thread      serverThread;
+    private GameClient client;
+    private Thread serverThread;
 
-    private VBox        playerList;
-    private Label       statusLabel;
-    private Button      readyBtn;
-    private TextField   nameField;
-    private TextField   ipField;
+    private VBox playerList;
+    private Label statusLabel;
+    private Button readyBtn;
+    private TextField nameField;
+    private TextField ipField;
 
-    private boolean     isReady     = false;
-    private boolean     isConnected = false;
+    private boolean isReady = false;
+    private boolean isConnected = false;
 
-    private static final String NORMAL_STYLE =
-        "-fx-background-color: transparent; -fx-text-fill: white; " +
-        "-fx-border-color: white; -fx-border-width: 2px; " +
-        "-fx-padding: 15 40; -fx-cursor: hand;";
-    private static final String READY_STYLE =
-        "-fx-background-color: #4CAF50; -fx-text-fill: white; " +
-        "-fx-border-color: #4CAF50; -fx-border-width: 2px; " +
-        "-fx-padding: 15 40; -fx-cursor: hand;";
-    private static final String DISABLED_STYLE =
-        "-fx-background-color: transparent; -fx-text-fill: #555555; " +
-        "-fx-border-color: #555555; -fx-border-width: 2px; " +
-        "-fx-padding: 15 40;";
+    private static final String NORMAL_STYLE = "-fx-background-color: transparent; -fx-text-fill: #3d282e; " +
+            "-fx-border-color: #3d282e; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String READY_STYLE = "-fx-background-color: #4CAF50; -fx-text-fill: white; " +
+            "-fx-border-color: #4CAF50; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String DISABLED_STYLE = "-fx-background-color: transparent; -fx-text-fill: #666666; " +
+            "-fx-border-color: #666666; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-font-weight: bold;";
+
+    private static final String BTN_NORMAL = "-fx-background-color: transparent; -fx-text-fill: #3d282e; " +
+            "-fx-border-color: #3d282e; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String BTN_HOVER = "-fx-background-color: #3d282e; -fx-text-fill: white; " +
+            "-fx-border-color: #3d282e; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+
+    private void styleLocalButton(Button btn) {
+        btn.setFont(Font.font(UIUtils.MAIN_FONT, 20));
+        btn.setStyle(BTN_NORMAL);
+        btn.setOnMouseEntered(e -> btn.setStyle(BTN_HOVER));
+        btn.setOnMouseExited(e -> btn.setStyle(BTN_NORMAL));
+    }
 
     // ------------------------------------------------------------------
     // Constructor
@@ -89,11 +102,11 @@ public class MultiplayerScreen {
         // Title
         Label title = new Label("The Tray");
         title.setFont(Font.font(UIUtils.MAIN_FONT, 72));
-        title.setStyle("-fx-text-fill: #b89664;");
+        title.setStyle("-fx-text-fill: #b89664; -fx-font-weight: bold;");
 
         Label subtitle = new Label("Lobby");
         subtitle.setFont(Font.font(UIUtils.MAIN_FONT, 28));
-        subtitle.setStyle("-fx-text-fill: #AAAAAA;");
+        subtitle.setStyle("-fx-text-fill: #3d282e;");
 
         VBox titleBox = new VBox(4, title, subtitle);
         titleBox.setAlignment(Pos.CENTER);
@@ -102,21 +115,21 @@ public class MultiplayerScreen {
         nameField = new TextField("Player");
         nameField.setPromptText("Your name");
         nameField.setMaxWidth(180);
-        nameField.setStyle("-fx-background-color: #1c1c1c; -fx-text-fill: white; " +
-                           "-fx-border-color: #444; -fx-border-radius: 4; -fx-padding: 6 10;");
+        nameField.setStyle("-fx-background-color: #ffffff; -fx-text-fill: #3d282e; " +
+                "-fx-border-color: #3d282e; -fx-border-radius: 4; -fx-padding: 6 10; -fx-font-weight: bold;");
 
         ipField = new TextField("localhost");
         ipField.setPromptText("Server IP (for Join)");
         ipField.setMaxWidth(180);
-        ipField.setStyle("-fx-background-color: #1c1c1c; -fx-text-fill: white; " +
-                         "-fx-border-color: #444; -fx-border-radius: 4; -fx-padding: 6 10;");
+        ipField.setStyle("-fx-background-color: #ffffff; -fx-text-fill: #3d282e; " +
+                "-fx-border-color: #3d282e; -fx-border-radius: 4; -fx-padding: 6 10; -fx-font-weight: bold;");
 
         Button hostBtn = new Button("Host Game");
-        UIUtils.styleButton(hostBtn, UIUtils.BUTTON_STYLE, UIUtils.BUTTON_HOVER_STYLE);
+        styleLocalButton(hostBtn);
         hostBtn.setOnAction(e -> hostGame());
 
         Button joinBtn = new Button("Join Game");
-        UIUtils.styleButton(joinBtn, UIUtils.BUTTON_STYLE, UIUtils.BUTTON_HOVER_STYLE);
+        styleLocalButton(joinBtn);
         joinBtn.setOnAction(e -> joinGame());
 
         HBox connectionRow = new HBox(16, nameField, ipField, hostBtn, joinBtn);
@@ -130,7 +143,7 @@ public class MultiplayerScreen {
 
         Label listHeader = new Label("Players");
         listHeader.setFont(Font.font(UIUtils.MAIN_FONT, 26));
-        listHeader.setStyle("-fx-text-fill: white;");
+        listHeader.setStyle("-fx-text-fill: #3d282e; -fx-font-weight: bold;");
         VBox.setMargin(listHeader, new Insets(0, 0, 8, 0));
         playerList.getChildren().add(listHeader);
 
@@ -138,27 +151,40 @@ public class MultiplayerScreen {
             playerList.getChildren().add(buildEmptySlot(i));
         }
 
+        ScrollPane scrollPane = new ScrollPane(playerList);
+        scrollPane.setPrefSize(350, 350);
+        scrollPane.setMaxSize(350, 350);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-control-inner-background: transparent;");
+
         StackPane arenaPreview = buildArenaPreview();
 
-        HBox center = new HBox(40, playerList, arenaPreview);
+        HBox center = new HBox(40, scrollPane, arenaPreview);
         center.setAlignment(Pos.CENTER);
 
         // Status label
         statusLabel = new Label("Host or join a lobby to begin…");
         statusLabel.setFont(Font.font(UIUtils.MAIN_FONT, 24));
-        statusLabel.setStyle("-fx-text-fill: #AAAAAA;");
+        statusLabel.setStyle("-fx-text-fill: #3d282e; -fx-font-weight: bold;");
 
         // Ready button (disabled until connected)
         readyBtn = new Button("Ready");
         readyBtn.setFont(Font.font(UIUtils.MAIN_FONT, 26));
         readyBtn.setStyle(DISABLED_STYLE);
         readyBtn.setDisable(true);
-        readyBtn.setOnMouseEntered(e -> { if (!isReady && isConnected) readyBtn.setStyle(UIUtils.BUTTON_HOVER_STYLE); });
-        readyBtn.setOnMouseExited(e ->  { if (!isReady && isConnected) readyBtn.setStyle(NORMAL_STYLE); });
+        readyBtn.setOnMouseEntered(e -> {
+            if (!isReady && isConnected)
+                readyBtn.setStyle(UIUtils.BUTTON_HOVER_STYLE);
+        });
+        readyBtn.setOnMouseExited(e -> {
+            if (!isReady && isConnected)
+                readyBtn.setStyle(NORMAL_STYLE);
+        });
         readyBtn.setOnAction(e -> toggleReady());
 
         Button backBtn = new Button("Back to Menu");
-        UIUtils.styleButton(backBtn, UIUtils.BUTTON_STYLE, UIUtils.BUTTON_HOVER_STYLE);
+        styleLocalButton(backBtn);
         backBtn.setOnAction(e -> {
             cleanup();
             mainApp.showLandingPage();
@@ -169,9 +195,27 @@ public class MultiplayerScreen {
 
         VBox layout = new VBox(20, titleBox, connectionRow, center, statusLabel, buttons);
         layout.setAlignment(Pos.CENTER);
-        layout.setStyle(UIUtils.BG_STYLE);
         layout.setPadding(new Insets(40));
-        this.root = layout;
+        this.mainLayout = layout;
+
+        this.root = new StackPane();
+
+        File lobbyBgFile = new File("assets/images/Lobby.png");
+        if (lobbyBgFile.exists()) {
+            ImageView bgImage = new ImageView(new Image(lobbyBgFile.toURI().toString()));
+            bgImage.setPreserveRatio(false);
+            bgImage.fitWidthProperty().bind(this.root.widthProperty());
+            bgImage.fitHeightProperty().bind(this.root.heightProperty());
+            this.root.getChildren().add(bgImage);
+        }
+
+        javafx.scene.shape.Rectangle overlay = new javafx.scene.shape.Rectangle();
+        overlay.widthProperty().bind(this.root.widthProperty());
+        overlay.heightProperty().bind(this.root.heightProperty());
+        overlay.setFill(Color.web("#efefef"));
+        overlay.setOpacity(0.5);
+
+        this.root.getChildren().addAll(overlay, this.mainLayout);
     }
 
     // ------------------------------------------------------------------
@@ -185,7 +229,10 @@ public class MultiplayerScreen {
         serverThread.start();
 
         new Thread(() -> {
-            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException ignored) {
+            }
             Platform.runLater(() -> {
                 ipField.setText("localhost");
                 joinGame();
@@ -197,24 +244,27 @@ public class MultiplayerScreen {
 
     private void joinGame() {
         String name = nameField.getText().trim();
-        if (name.isEmpty()) name = "Player";
+        if (name.isEmpty())
+            name = "Player";
         String ip = ipField.getText().trim();
-        if (ip.isEmpty()) ip = "localhost";
+        if (ip.isEmpty())
+            ip = "localhost";
 
         setStatus("Connecting to " + ip + "…", "#FFA726");
 
         final String finalName = name;
-        final String finalIp   = ip;
+        final String finalIp = ip;
 
         new Thread(() -> {
             try {
                 client = new GameClient(finalIp, GameServer.DEFAULT_PORT, finalName)
-                    .onLobbyUpdate(players -> Platform.runLater(() -> applyLobbyUpdate(players)))
-                    .onStartGame(msg       -> Platform.runLater(() -> startGame(msg)))
-                    .onGameState(states    -> { /* lobby ignores game state */ })
-                    .onGameOver(results    -> { /* lobby ignores game over */ })
-                    .onError(err           -> Platform.runLater(() ->
-                        setStatus("Error: " + err, "#F44336")));
+                        .onLobbyUpdate(players -> Platform.runLater(() -> applyLobbyUpdate(players)))
+                        .onStartGame(msg -> Platform.runLater(() -> startGame(msg)))
+                        .onGameState(states -> {
+                            /* lobby ignores game state */ })
+                        .onGameOver(results -> {
+                            /* lobby ignores game over */ })
+                        .onError(err -> Platform.runLater(() -> setStatus("Error: " + err, "#F44336")));
 
                 client.connect();
 
@@ -226,14 +276,15 @@ public class MultiplayerScreen {
                 });
 
             } catch (IOException e) {
-                Platform.runLater(() ->
-                    setStatus("Could not connect to " + finalIp + " — is the server running?", "#F44336"));
+                Platform.runLater(
+                        () -> setStatus("Could not connect to " + finalIp + " — is the server running?", "#F44336"));
             }
         }, "ConnectThread").start();
     }
 
     private void toggleReady() {
-        if (!isConnected || client == null) return;
+        if (!isConnected || client == null)
+            return;
         isReady = !isReady;
         client.sendReady();
         readyBtn.setStyle(isReady ? READY_STYLE : NORMAL_STYLE);
@@ -259,7 +310,7 @@ public class MultiplayerScreen {
 
         long readyCount = players.stream().filter(p -> p.isReady).count();
         setStatus("Players: " + players.size() + "/" + GameServer.MIN_PLAYERS
-                  + "  |  Ready: " + readyCount + "/" + players.size(), "#AAAAAA");
+                + "  |  Ready: " + readyCount + "/" + players.size(), "#AAAAAA");
     }
 
     private void startGame(NetworkMessage msg) {
@@ -270,12 +321,16 @@ public class MultiplayerScreen {
     // Slot builders
     // ------------------------------------------------------------------
 
-    private HBox buildFilledSlot(int index, LobbyPlayer player) {
-        HBox slot = slotBase(index);
+    private StackPane buildFilledSlot(int index, LobbyPlayer player) {
+        StackPane slot = slotBase(index);
+
+        HBox content = new HBox(14);
+        content.setAlignment(Pos.CENTER_LEFT);
+        content.setPadding(new Insets(10, 18, 10, 18));
 
         String doughFile = DOUGH_FILES[Math.abs(player.colorHex.hashCode()) % DOUGH_FILES.length];
-        File   imgFile   = new File("assets/images/PlayersDough/" + doughFile + ".png");
-        ImageView icon   = new ImageView();
+        File imgFile = new File("assets/images/PlayersDough/" + doughFile + ".png");
+        ImageView icon = new ImageView();
         if (imgFile.exists()) {
             icon.setImage(new Image(imgFile.toURI().toString()));
         }
@@ -285,35 +340,29 @@ public class MultiplayerScreen {
 
         Label name = new Label(player.playerName + (player.isReady ? " ✓" : ""));
         name.setFont(Font.font(UIUtils.MAIN_FONT, 22));
-        name.setStyle("-fx-text-fill: " + player.colorHex + ";");
+        name.setStyle("-fx-text-fill: #3d282e; -fx-font-weight: bold;");
 
-        slot.getChildren().addAll(icon, name);
+        content.getChildren().addAll(icon, name);
+        slot.getChildren().add(content);
         return slot;
     }
 
-    private HBox buildEmptySlot(int index) {
-        HBox slot = slotBase(index);
-
-        Circle placeholder = new Circle(22);
-        placeholder.setFill(Color.web("#2a2a2a"));
-        placeholder.setStroke(Color.web("#444444"));
-        placeholder.setStrokeWidth(2);
-
-        Label name = new Label("Waiting…");
-        name.setFont(Font.font(UIUtils.MAIN_FONT, 22));
-        name.setStyle("-fx-text-fill: #444444;");
-
-        slot.getChildren().addAll(placeholder, name);
-        return slot;
+    private StackPane buildEmptySlot(int index) {
+        return slotBase(index);
     }
 
-    private HBox slotBase(int index) {
-        HBox slot = new HBox(14);
+    private StackPane slotBase(int index) {
+        StackPane slot = new StackPane();
         slot.setAlignment(Pos.CENTER_LEFT);
-        slot.setPadding(new Insets(10, 18, 10, 18));
-        slot.setPrefWidth(300);
-        slot.setStyle("-fx-background-color: " + (index % 2 == 0 ? "#1c1c1c" : "#141414")
-                    + "; -fx-background-radius: 8;");
+
+        File trayFile = new File("assets/images/Lobby tray.png");
+        if (trayFile.exists()) {
+            ImageView trayBg = new ImageView(new Image(trayFile.toURI().toString()));
+            trayBg.setPreserveRatio(true);
+            trayBg.setFitWidth(300);
+            slot.getChildren().add(trayBg);
+        }
+
         return slot;
     }
 
@@ -322,25 +371,33 @@ public class MultiplayerScreen {
         preview.setPrefSize(300, 300);
         preview.setMaxSize(300, 300);
 
+        javafx.scene.layout.Pane imagePane = new javafx.scene.layout.Pane();
+        imagePane.setMinSize(300, 300);
+        imagePane.setMaxSize(300, 300);
+
         File bgFile = new File("assets/images/GameplayBackground.jpg");
         if (bgFile.exists()) {
             ImageView bg = new ImageView(new Image(bgFile.toURI().toString()));
-            bg.setFitWidth(300);
             bg.setFitHeight(300);
-            bg.setPreserveRatio(false);
-            bg.setClip(new Circle(150, 150, 145));
-            preview.getChildren().add(bg);
+            bg.setPreserveRatio(true);
+            bg.setLayoutX(-116);
+            imagePane.getChildren().add(bg);
         }
 
-        Circle border = new Circle(145);
+        Circle clip = new Circle(150, 150, 145);
+        imagePane.setClip(clip);
+
+        Circle border = new Circle(150, 150, 145);
         border.setFill(Color.TRANSPARENT);
         border.setStroke(Color.web("#b89664"));
         border.setStrokeWidth(3);
-        preview.getChildren().add(border);
+        imagePane.getChildren().add(border);
+
+        preview.getChildren().add(imagePane);
 
         Label previewLabel = new Label("Arena Preview");
         previewLabel.setFont(Font.font(UIUtils.MAIN_FONT, 16));
-        previewLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.5);");
+        previewLabel.setStyle("-fx-text-fill: #3d282e; -fx-font-weight: bold;");
         StackPane.setAlignment(previewLabel, Pos.BOTTOM_CENTER);
         StackPane.setMargin(previewLabel, new Insets(0, 0, 14, 0));
         preview.getChildren().add(previewLabel);
