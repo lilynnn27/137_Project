@@ -16,6 +16,9 @@ import app.game_logic.PickupEntity;
 import app.game_logic.ReverseControlsHazard;
 import app.game_logic.SlowingHazard;
 import app.game_logic.TerritoryManager;
+import app.game_logic.SpeedPowerup;
+import app.game_logic.BiggerSizePowerup;
+import app.game_logic.TransparentTrailPowerup;
 import app.game_logic.Timer;
 import app.game_logic.TrailManager;
 import app.network.GameClient;
@@ -188,10 +191,26 @@ public class GamePlayScreen {
     private long reverseEndNanos = 0;
     /** Sprite for H3 Rotten Egg hazard; null if the file is missing. */
     private Image rottenEggSprite;
-    /** Nanosecond timestamp of the last Rotten Egg spawn (0 = none yet). */
     private long lastRottenEggSpawnNanos = 0;
     /** How often to spawn a new Rotten Egg hazard (15 seconds). */
     private static final long ROTTEN_EGG_SPAWN_INTERVAL_NANOS = 15_000_000_000L;
+
+    // --- Powerups ---
+    private boolean isTrailTransparent = false;
+    private long transparentEndNanos = 0;
+    private long biggerSizeEndNanos = 0;
+
+    private Image oilSprite;
+    private long lastOilSpawnNanos = 0;
+    private static final long OIL_SPAWN_INTERVAL_NANOS = 15_000_000_000L;
+
+    private Image doughPowerupSprite;
+    private long lastDoughSpawnNanos = 0;
+    private static final long DOUGH_SPAWN_INTERVAL_NANOS = 20_000_000_000L;
+
+    private Image flourSprite;
+    private long lastFlourSpawnNanos = 0;
+    private static final long FLOUR_SPAWN_INTERVAL_NANOS = 25_000_000_000L;
 
     /** Shared RNG — used for dough selection and hazard spawning. */
     private final Random rng = new Random();
@@ -328,10 +347,23 @@ public class GamePlayScreen {
             iceSprite = new Image(iceFile.toURI().toString());
         }
 
-        // --- H3 Rotten Egg hazard sprite ---
         File reFile = new File("assets/images/hazard/RottenEgg-Hazard.png");
         if (reFile.exists()) {
             rottenEggSprite = new Image(reFile.toURI().toString());
+        }
+
+        // --- Powerup sprites ---
+        File oilFile = new File("assets/images/powerup/Oil-Powerup.png");
+        if (oilFile.exists()) {
+            oilSprite = new Image(oilFile.toURI().toString());
+        }
+        File doughPFile = new File("assets/images/powerup/Dough-Powerup.png");
+        if (doughPFile.exists()) {
+            doughPowerupSprite = new Image(doughPFile.toURI().toString());
+        }
+        File flourFile = new File("assets/images/powerup/Flour-Powerup.png");
+        if (flourFile.exists()) {
+            flourSprite = new Image(flourFile.toURI().toString());
         }
 
         // --- Starting territory centred on spawn ---
@@ -478,6 +510,12 @@ public class GamePlayScreen {
         if (isControlsReversed && now >= reverseEndNanos) {
             isControlsReversed = false;
         }
+        if (now >= biggerSizeEndNanos) {
+            trailManager.setWidthMultiplier(1.0);
+        }
+        if (isTrailTransparent && now >= transparentEndNanos) {
+            isTrailTransparent = false;
+        }
 
         // Smooth Direction — inversion is applied here as a read-only local so
         // neither the mouse handler nor updateDirection() need to know about H3.
@@ -521,6 +559,18 @@ public class GamePlayScreen {
             spawnRottenEggHazard();
             lastRottenEggSpawnNanos = now;
         }
+        if (lastOilSpawnNanos == 0 || now - lastOilSpawnNanos >= OIL_SPAWN_INTERVAL_NANOS) {
+            spawnPickup(oilSprite, (hx, hy, spr) -> new SpeedPowerup(hx, hy, spr));
+            lastOilSpawnNanos = now;
+        }
+        if (lastDoughSpawnNanos == 0 || now - lastDoughSpawnNanos >= DOUGH_SPAWN_INTERVAL_NANOS) {
+            spawnPickup(doughPowerupSprite, (hx, hy, spr) -> new BiggerSizePowerup(hx, hy, spr));
+            lastDoughSpawnNanos = now;
+        }
+        if (lastFlourSpawnNanos == 0 || now - lastFlourSpawnNanos >= FLOUR_SPAWN_INTERVAL_NANOS) {
+            spawnPickup(flourSprite, (hx, hy, spr) -> new TransparentTrailPowerup(hx, hy, spr));
+            lastFlourSpawnNanos = now;
+        }
 
         // --- Pickup collision ---
         pickups.removeIf(p -> !p.isActive());
@@ -536,6 +586,15 @@ public class GamePlayScreen {
                 } else if (pickup instanceof ReverseControlsHazard rh) {
                     isControlsReversed = true;
                     reverseEndNanos = now + (long) (rh.getEffectDurationSeconds() * 1_000_000_000L);
+                } else if (pickup instanceof SpeedPowerup sp) {
+                    speedMultiplier = SpeedPowerup.SPEED_MULTIPLIER;
+                    speedEffectEndNanos = now + (long) (sp.getEffectDurationSeconds() * 1_000_000_000L);
+                } else if (pickup instanceof BiggerSizePowerup bp) {
+                    trailManager.setWidthMultiplier(BiggerSizePowerup.TRAIL_SIZE_MULTIPLIER);
+                    biggerSizeEndNanos = now + (long) (bp.getEffectDurationSeconds() * 1_000_000_000L);
+                } else if (pickup instanceof TransparentTrailPowerup tp) {
+                    isTrailTransparent = true;
+                    transparentEndNanos = now + (long) (tp.getEffectDurationSeconds() * 1_000_000_000L);
                 }
             }
         }
@@ -625,11 +684,16 @@ public class GamePlayScreen {
             netFrameCounter++;
             if (netFrameCounter >= NET_SEND_INTERVAL) {
                 netFrameCounter = 0;
-                List<Point2D> trailPts = trailManager.getTrailPoints();
-                double[] packed = new double[trailPts.size() * 2];
-                for (int i = 0; i < trailPts.size(); i++) {
-                    packed[i * 2]     = trailPts.get(i).getX();
-                    packed[i * 2 + 1] = trailPts.get(i).getY();
+                double[] packed;
+                if (isTrailTransparent) {
+                    packed = new double[0];
+                } else {
+                    List<Point2D> trailPts = trailManager.getTrailPoints();
+                    packed = new double[trailPts.size() * 2];
+                    for (int i = 0; i < trailPts.size(); i++) {
+                        packed[i * 2]     = trailPts.get(i).getX();
+                        packed[i * 2 + 1] = trailPts.get(i).getY();
+                    }
                 }
                 gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, areaFraction * 100);
             }
@@ -637,8 +701,27 @@ public class GamePlayScreen {
     }
 
     // -----------------------------------------------------------------------
-    // Hazard spawning
+    // Hazard and Powerup spawning
     // -----------------------------------------------------------------------
+
+    private interface PickupFactory {
+        PickupEntity create(double x, double y, Image sprite);
+    }
+
+    private void spawnPickup(Image sprite, PickupFactory factory) {
+        if (sprite == null) return;
+        double maxR = WORLD_RADIUS * 0.85;
+        for (int attempt = 0; attempt < 20; attempt++) {
+            double angle = rng.nextDouble() * 2 * Math.PI;
+            double r = rng.nextDouble() * maxR;
+            double hx = Math.cos(angle) * r;
+            double hy = Math.sin(angle) * r;
+            if (!territoryManager.isInsideTerritory(hx, hy)) {
+                pickups.add(factory.create(hx, hy, sprite));
+                return;
+            }
+        }
+    }
 
     /**
      * Spawns a Rolling Pin (H1) hazard at a random position inside the arena
@@ -712,6 +795,10 @@ public class GamePlayScreen {
         isFrozen = false;
         isControlsReversed = false;
         outsideTerritory = false;
+        trailManager.setWidthMultiplier(1.0);
+        biggerSizeEndNanos = 0;
+        isTrailTransparent = false;
+        transparentEndNanos = 0;
         showGameOver();
     }
 
