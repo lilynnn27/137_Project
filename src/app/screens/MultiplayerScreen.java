@@ -23,7 +23,6 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -121,12 +120,38 @@ public class MultiplayerScreen {
     private boolean isReady = false;
     private boolean isConnected = false;
 
+    // Image fields — held here so they are never GC'd while the screen is displayed
+    private Image bgImage;
+    private Image arenaPreviewBgImage;
+    private final Image[] doughImages   = new Image[DOUGH_FILES.length]; // all 8 colors
+    private final Image[] previewImages = new Image[6];                  // 3 hazards + 3 powerups
+
     // ------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------
 
     public MultiplayerScreen(Main mainApp) {
         this.mainApp = mainApp;
+
+        bgImage = UIUtils.ImageCache.get("assets/images/MainBackground.jpg");
+
+        for (int i = 0; i < DOUGH_FILES.length; i++) {
+            doughImages[i] = UIUtils.ImageCache.get("assets/images/PlayersDough/" + DOUGH_FILES[i] + ".png");
+        }
+
+        arenaPreviewBgImage = UIUtils.ImageCache.get("assets/images/GameplayBackground.jpg");
+
+        String[] pvPaths = {
+            "assets/images/hazard/RollingPin-Hazard.png",
+            "assets/images/hazard/Ice-Hazard.png",
+            "assets/images/hazard/RottenEgg-Hazard.png",
+            "assets/images/powerup/Oil-Powerup.png",
+            "assets/images/powerup/Dough-Powerup.png",
+            "assets/images/powerup/Flour-Powerup.png"
+        };
+        for (int i = 0; i < pvPaths.length; i++) {
+            previewImages[i] = UIUtils.ImageCache.get(pvPaths[i]);
+        }
 
         // Title
         Label title = new Label("The Tray");
@@ -240,13 +265,12 @@ public class MultiplayerScreen {
         // Root with MainBackground + dark overlay
         this.root = new StackPane();
 
-        File bgFile = new File("assets/images/MainBackground.jpg");
-        if (bgFile.exists()) {
-            ImageView bgImage = new ImageView(new Image(bgFile.toURI().toString()));
-            bgImage.setPreserveRatio(false);
-            bgImage.fitWidthProperty().bind(this.root.widthProperty());
-            bgImage.fitHeightProperty().bind(this.root.heightProperty());
-            this.root.getChildren().add(bgImage);
+        if (bgImage != null && !bgImage.isError()) {
+            ImageView bgImgView = new ImageView(bgImage);
+            bgImgView.setPreserveRatio(false);
+            bgImgView.fitWidthProperty().bind(this.root.widthProperty());
+            bgImgView.fitHeightProperty().bind(this.root.heightProperty());
+            this.root.getChildren().add(bgImgView);
         }
 
         Rectangle overlay = new Rectangle();
@@ -366,12 +390,9 @@ public class MultiplayerScreen {
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(10, 18, 10, 18));
 
-        String doughFile = DOUGH_FILES[Math.abs(player.colorHex.hashCode()) % DOUGH_FILES.length];
-        File imgFile = new File("assets/images/PlayersDough/" + doughFile + ".png");
+        int imgIdx = Math.abs(player.colorHex.hashCode()) % DOUGH_FILES.length;
         ImageView icon = new ImageView();
-        if (imgFile.exists()) {
-            icon.setImage(new Image(imgFile.toURI().toString()));
-        }
+        if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError()) icon.setImage(doughImages[imgIdx]);
         icon.setFitWidth(44);
         icon.setFitHeight(44);
         icon.setPreserveRatio(true);
@@ -399,12 +420,9 @@ public class MultiplayerScreen {
         content.setAlignment(Pos.CENTER_LEFT);
         content.setPadding(new Insets(10, 18, 10, 18));
 
-        String doughFile = DOUGH_FILES[index % DOUGH_FILES.length];
-        File imgFile = new File("assets/images/PlayersDough/" + doughFile + ".png");
+        int imgIdx = index % DOUGH_FILES.length;
         ImageView icon = new ImageView();
-        if (imgFile.exists()) {
-            icon.setImage(new Image(imgFile.toURI().toString()));
-        }
+        if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError()) icon.setImage(doughImages[imgIdx]);
         icon.setFitWidth(44);
         icon.setFitHeight(44);
         icon.setPreserveRatio(true);
@@ -439,9 +457,8 @@ public class MultiplayerScreen {
         imagePane.setMinSize(300, 300);
         imagePane.setMaxSize(300, 300);
 
-        File bgFile = new File("assets/images/GameplayBackground.jpg");
-        if (bgFile.exists()) {
-            ImageView bg = new ImageView(new Image(bgFile.toURI().toString()));
+        if (arenaPreviewBgImage != null && !arenaPreviewBgImage.isError()) {
+            ImageView bg = new ImageView(arenaPreviewBgImage);
             bg.setFitHeight(300);
             bg.setPreserveRatio(true);
             bg.setLayoutX(-116);
@@ -474,21 +491,11 @@ public class MultiplayerScreen {
         header.setFont(Font.font(UIUtils.MAIN_FONT, 16));
         header.setStyle("-fx-text-fill: " + MUTED + ";");
 
-        String[] paths = {
-            "assets/images/hazard/RollingPin-Hazard.png",
-            "assets/images/hazard/Ice-Hazard.png",
-            "assets/images/hazard/RottenEgg-Hazard.png",
-            "assets/images/powerup/Oil-Powerup.png",
-            "assets/images/powerup/Dough-Powerup.png",
-            "assets/images/powerup/Flour-Powerup.png"
-        };
-
         HBox iconRow = new HBox(18);
         iconRow.setAlignment(Pos.CENTER);
-        for (String path : paths) {
-            File f = new File(path);
-            if (f.exists()) {
-                ImageView iv = new ImageView(new Image(f.toURI().toString()));
+        for (Image img : previewImages) {
+            if (img != null && !img.isError()) {
+                ImageView iv = new ImageView(img);
                 iv.setFitWidth(32);
                 iv.setFitHeight(32);
                 iv.setPreserveRatio(true);

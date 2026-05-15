@@ -1,7 +1,5 @@
 package app.screens;
 
-import java.io.File;
-
 import app.Main;
 import app.utils.UIUtils;
 import javafx.geometry.Insets;
@@ -26,6 +24,7 @@ public class GameOverModal {
     private final Main mainApp;
     private final int score;
     private final int total;
+    private Image gameOverBgImage; // held as field so the D3D texture is never GC'd while displayed
 
     public GameOverModal(Main mainApp, int score, int total) {
         this.mainApp = mainApp;
@@ -36,17 +35,16 @@ public class GameOverModal {
         window.initModality(Modality.APPLICATION_MODAL);
         window.initStyle(StageStyle.TRANSPARENT); // Removes window borders
         
-        window.initOwner(mainApp.getPrimaryStage()); 
+        window.initOwner(mainApp.getPrimaryStage());
+
+        gameOverBgImage = UIUtils.ImageCache.get("assets/images/GameOverModal.png");
     }
 
     public void show() {
         mainApp.setBackgroundBlur(true); // Apply blur to the main game screen
         
-        File file = new File("assets/images/GameOverModal.png");
         ImageView bgView = new ImageView();
-        if (file.exists()) {
-            bgView.setImage(new Image(file.toURI().toString()));
-        }
+        if (gameOverBgImage != null && !gameOverBgImage.isError()) bgView.setImage(gameOverBgImage);
 
         bgView.setPreserveRatio(false);
         bgView.fitWidthProperty().bind(window.widthProperty());

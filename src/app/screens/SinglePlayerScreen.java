@@ -15,8 +15,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
-import java.io.File;
-
 public class SinglePlayerScreen {
 
     private static final String CREAM  = "#f5e6c8";
@@ -44,12 +42,36 @@ public class SinglePlayerScreen {
 
     private final StackPane root;
 
+    // Image fields — held here so they are never GC'd while the screen is displayed
+    private Image bgImage;
+    private final Image[] doughImages   = new Image[4]; // orange, blue, green, red
+    private final Image[] previewImages = new Image[6]; // 3 hazards + 3 powerups
+
     public SinglePlayerScreen(Main mainApp) {
         root = new StackPane();
 
-        File bgFile = new File("assets/images/MainBackground.jpg");
-        if (bgFile.exists()) {
-            ImageView bg = new ImageView(new Image(bgFile.toURI().toString()));
+        bgImage = UIUtils.ImageCache.get("assets/images/MainBackground.jpg");
+
+        String[] colors = {"orange", "blue", "green", "red"};
+        for (int i = 0; i < colors.length; i++) {
+            doughImages[i] = UIUtils.ImageCache.get("assets/images/PlayersDough/" + colors[i] + ".png");
+        }
+
+        String[] pvPaths = {
+            "assets/images/hazard/RollingPin-Hazard.png",
+            "assets/images/hazard/Ice-Hazard.png",
+            "assets/images/hazard/RottenEgg-Hazard.png",
+            "assets/images/powerup/Oil-Powerup.png",
+            "assets/images/powerup/Dough-Powerup.png",
+            "assets/images/powerup/Flour-Powerup.png"
+        };
+        for (int i = 0; i < pvPaths.length; i++) {
+            previewImages[i] = UIUtils.ImageCache.get(pvPaths[i]);
+        }
+
+        // Background
+        if (bgImage != null && !bgImage.isError()) {
+            ImageView bg = new ImageView(bgImage);
             bg.setPreserveRatio(false);
             bg.fitWidthProperty().bind(root.widthProperty());
             bg.fitHeightProperty().bind(root.heightProperty());
@@ -62,6 +84,7 @@ public class SinglePlayerScreen {
         overlay.setFill(Color.web("#000000", 0.62));
         root.getChildren().add(overlay);
 
+        // Title
         Label title = new Label("Single Player Mode");
         title.setFont(Font.font(UIUtils.MAIN_FONT, 38));
         title.setStyle("-fx-text-fill:" + GOLD + ";");
@@ -74,21 +97,22 @@ public class SinglePlayerScreen {
         VBox titleBox = new VBox(6, title, subtitle);
         titleBox.setAlignment(Pos.CENTER);
 
+        // The Tray
         Label trayHeader = new Label("The Tray");
         trayHeader.setFont(Font.font(UIUtils.MAIN_FONT, 26));
         trayHeader.setStyle("-fx-text-fill:" + GOLD + ";");
 
-        String[] colors = {"orange", "blue", "green", "red"};
-        String[] names  = {"Player 1", "Player 2", "Player 3", "Player 4"};
+        String[] names = {"Player 1", "Player 2", "Player 3", "Player 4"};
         HBox slotsRow = new HBox(20);
         slotsRow.setAlignment(Pos.CENTER);
-        slotsRow.getChildren().add(buildFilledSlot(colors[0], names[0]));
+        slotsRow.getChildren().add(buildFilledSlot(doughImages[0], names[0]));
         for (int i = 1; i < 4; i++)
-            slotsRow.getChildren().add(buildEmptySlot(colors[i], names[i]));
+            slotsRow.getChildren().add(buildEmptySlot(doughImages[i], names[i]));
 
         VBox trayBox = new VBox(14, trayHeader, slotsRow);
         trayBox.setAlignment(Pos.CENTER);
 
+        // Buttons
         Button btnPlay = new Button("Play Now");
         btnPlay.setFont(Font.font(UIUtils.MAIN_FONT, 20));
         btnPlay.setStyle(BTN_PRI_N);
@@ -112,16 +136,15 @@ public class SinglePlayerScreen {
         root.getChildren().add(content);
     }
 
-    private StackPane buildFilledSlot(String color, String playerName) {
+    private StackPane buildFilledSlot(Image img, String playerName) {
         StackPane slot = new StackPane();
         slot.setPrefSize(130, 160);
         slot.setStyle(
             "-fx-background-color:rgba(61,40,46,0.75);-fx-background-radius:10;" +
             "-fx-border-color:#b89664;-fx-border-width:2;-fx-border-radius:10;"
         );
-        File imgFile = new File("assets/images/PlayersDough/" + color + ".png");
         ImageView icon = new ImageView();
-        if (imgFile.exists()) icon.setImage(new Image(imgFile.toURI().toString()));
+        if (img != null && !img.isError()) icon.setImage(img);
         icon.setFitWidth(64); icon.setFitHeight(64); icon.setPreserveRatio(true);
         Label name = new Label(playerName);
         name.setFont(Font.font(UIUtils.MAIN_FONT, 15));
@@ -132,7 +155,7 @@ public class SinglePlayerScreen {
         return slot;
     }
 
-    private StackPane buildEmptySlot(String color, String playerName) {
+    private StackPane buildEmptySlot(Image img, String label) {
         StackPane slot = new StackPane();
         slot.setPrefSize(130, 160);
         slot.setStyle(
@@ -140,9 +163,8 @@ public class SinglePlayerScreen {
             "-fx-border-color:#555555;-fx-border-width:2;-fx-border-radius:10;" +
             "-fx-border-style:dashed;"
         );
-        File imgFile = new File("assets/images/PlayersDough/" + color + ".png");
         ImageView icon = new ImageView();
-        if (imgFile.exists()) icon.setImage(new Image(imgFile.toURI().toString()));
+        if (img != null && !img.isError()) icon.setImage(img);
         icon.setFitWidth(64); icon.setFitHeight(64); icon.setPreserveRatio(true);
         icon.setOpacity(0.3);
         Label waiting = new Label("Waiting...");
@@ -158,20 +180,11 @@ public class SinglePlayerScreen {
         Label header = new Label("What's in the kitchen:");
         header.setFont(Font.font(UIUtils.MAIN_FONT, 16));
         header.setStyle("-fx-text-fill:#888888;");
-        String[] paths = {
-            "assets/images/hazard/RollingPin-Hazard.png",
-            "assets/images/hazard/Ice-Hazard.png",
-            "assets/images/hazard/RottenEgg-Hazard.png",
-            "assets/images/powerup/Oil-Powerup.png",
-            "assets/images/powerup/Dough-Powerup.png",
-            "assets/images/powerup/Flour-Powerup.png"
-        };
         HBox iconRow = new HBox(18);
         iconRow.setAlignment(Pos.CENTER);
-        for (String path : paths) {
-            File f = new File(path);
-            if (f.exists()) {
-                ImageView iv = new ImageView(new Image(f.toURI().toString()));
+        for (Image img : previewImages) {
+            if (img != null && !img.isError()) {
+                ImageView iv = new ImageView(img);
                 iv.setFitWidth(32); iv.setFitHeight(32); iv.setPreserveRatio(true);
                 iconRow.getChildren().add(iv);
             }
