@@ -109,6 +109,7 @@ public class MultiplayerScreen {
     private final Main mainApp;
 
     private GameClient client;
+    private GameServer gameServer;
     private Thread serverThread;
 
     private VBox playerList;
@@ -285,10 +286,15 @@ public class MultiplayerScreen {
     // ------------------------------------------------------------------
 
     private void hostGame() {
-        GameServer server = new GameServer(GameServer.DEFAULT_PORT);
-        serverThread = new Thread(server::start, "GameServer");
-        serverThread.setDaemon(true);
-        serverThread.start();
+        if (!GameServer.isServerRunning()) {
+            gameServer = new GameServer(GameServer.DEFAULT_PORT);
+            serverThread = new Thread(gameServer::start, "GameServer");
+            serverThread.setDaemon(true);
+            serverThread.start();
+            setStatus("Server started — waiting for players…", "#4CAF50");
+        } else {
+            setStatus("Server already running — connecting…", "#FFA726");
+        }
 
         new Thread(() -> {
             try {
@@ -300,11 +306,11 @@ public class MultiplayerScreen {
                 joinGame();
             });
         }).start();
-
-        setStatus("Server started — waiting for players…", "#4CAF50");
     }
 
     private void joinGame() {
+        if (isConnected) return;
+
         String name = nameField.getText().trim();
         if (name.isEmpty())
             name = "Player";
@@ -326,6 +332,7 @@ public class MultiplayerScreen {
                             /* lobby ignores game state */ })
                         .onGameOver(results -> {
                             /* lobby ignores game over */ })
+                        .onRejected(msg -> Platform.runLater(() -> setStatus(msg, "#F44336")))
                         .onError(err -> Platform.runLater(() -> setStatus("Error: " + err, "#F44336")));
 
                 client.connect();
@@ -524,6 +531,10 @@ public class MultiplayerScreen {
         if (client != null) {
             client.disconnect();
             client = null;
+        }
+        if (gameServer != null) {
+            gameServer.stop();
+            gameServer = null;
         }
     }
 

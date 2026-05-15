@@ -72,6 +72,9 @@ public class GameClient {
     /** Called when the server sends the final GAME_OVER leaderboard. */
     private Consumer<List<GameResult>> onGameOver;
 
+    /** Called when the server rejects the connection before the lobby is entered. */
+    private Consumer<String> onRejected;
+
     /** Called on any connection error so the UI can show a message. */
     private Consumer<String> onError;
 
@@ -109,6 +112,10 @@ public class GameClient {
         this.onGameOver = cb; return this;
     }
 
+    public GameClient onRejected(Consumer<String> cb) {
+        this.onRejected = cb; return this;
+    }
+
     public GameClient onError(Consumer<String> cb) {
         this.onError = cb; return this;
     }
@@ -135,13 +142,13 @@ public class GameClient {
         running = true;
         System.out.println("[Client] Connected to " + host + ":" + port);
 
-        // Send join immediately
-        send(NetworkMessage.join(playerName));
-
-        // Start receive loop on a daemon thread
+        // Receive loop must be live before the join is sent so a REJECTED
+        // message from the server is not missed if the send fails first.
         Thread receiveThread = new Thread(this::receiveLoop, "GameClient-Recv");
         receiveThread.setDaemon(true);
         receiveThread.start();
+
+        send(NetworkMessage.join(playerName));
     }
 
     // ------------------------------------------------------------------
@@ -150,11 +157,12 @@ public class GameClient {
 
     private void receiveLoop() {
         try {
-            while (running) {
+            while (true) {
                 Object obj = in.readObject();
                 if (obj instanceof NetworkMessage msg) {
                     dispatch(msg);
                 }
+                if (!running) break;
             }
         } catch (IOException | ClassNotFoundException e) {
             if (running) {
@@ -192,6 +200,11 @@ public class GameClient {
                 if (onGameOver != null && msg.results != null) {
                     onGameOver.accept(msg.results);
                 }
+            }
+            case REJECTED -> {
+                System.out.println("[Client] Rejected by server: " + msg.message);
+                if (onRejected != null) onRejected.accept(msg.message);
+                disconnect();
             }
             case PING -> {
                 send(NetworkMessage.pong());
