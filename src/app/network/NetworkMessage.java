@@ -64,7 +64,9 @@ public class NetworkMessage implements Serializable {
         /** Heartbeat — receiver should reply with PONG. */
         PING,
         /** Heartbeat reply. */
-        PONG
+        PONG,
+        /** Server → Client: connection rejected before joining (lobby full, game started, etc.). */
+        REJECTED
     }
 
     // ------------------------------------------------------------------
@@ -170,6 +172,8 @@ public class NetworkMessage implements Serializable {
     public String playerName;
     /** CSS hex color assigned by the server (e.g. "#FF7043"). */
     public String colorHex;
+    /** Human-readable reason string — used by REJECTED messages. */
+    public String message;
 
     // --- Spawn info (START_GAME) ---
     public double spawnX;
@@ -285,6 +289,13 @@ public class NetworkMessage implements Serializable {
     public static NetworkMessage pong() {
         NetworkMessage m = new NetworkMessage();
         m.type = Type.PONG;
+        return m;
+    }
+
+    public static NetworkMessage rejected(String text) {
+        NetworkMessage m = new NetworkMessage();
+        m.type    = Type.REJECTED;
+        m.message = text;
         return m;
     }
 }

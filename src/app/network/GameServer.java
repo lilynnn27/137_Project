@@ -1,6 +1,7 @@
 package app.network;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -44,7 +45,7 @@ public class GameServer {
 
     public static final int DEFAULT_PORT    = 5555;
     public static final int MIN_PLAYERS     = 2;
-    public static final int MAX_PLAYERS     = 8;
+    public static final int MAX_PLAYERS     = 4;
 
     /** Game duration in seconds. Must match GamePlayScreen timer. */
     private static final int GAME_DURATION_SECONDS = 40;
@@ -105,6 +106,11 @@ public class GameServer {
     private volatile boolean accepting = true;  // accept-loop flag
     private volatile boolean gameStarted = false;
 
+    /** True while a server is bound to the port. Checked by MultiplayerScreen to prevent double-bind. */
+    private static volatile boolean serverRunning = false;
+
+    public static boolean isServerRunning() { return serverRunning; }
+
     private ScheduledExecutorService broadcastScheduler;
 
     // ------------------------------------------------------------------
@@ -135,6 +141,7 @@ public class GameServer {
     public void start() {
         try {
             serverSocket = new ServerSocket(port);
+            serverRunning = true;
             System.out.println("[Server] Listening on port " + port);
 
             while (accepting) {
@@ -142,13 +149,14 @@ public class GameServer {
                     Socket clientSocket = serverSocket.accept();
 
                     if (gameStarted) {
-                        // Reject late-joiners
+                        sendRejection(clientSocket, "Game has already started.");
                         clientSocket.close();
                         continue;
                     }
 
                     if (clients.size() >= MAX_PLAYERS) {
                         System.out.println("[Server] Lobby full — rejected a connection.");
+                        sendRejection(clientSocket, "Game is full. Maximum " + MAX_PLAYERS + " players allowed.");
                         clientSocket.close();
                         continue;
                     }
@@ -170,6 +178,7 @@ public class GameServer {
 
     /** Shuts down the server gracefully. */
     public void stop() {
+        serverRunning = false;
         accepting = false;
         if (broadcastScheduler != null) broadcastScheduler.shutdownNow();
         for (ClientHandler c : clients) c.disconnect();
@@ -391,6 +400,20 @@ public class GameServer {
     // ------------------------------------------------------------------
     // Broadcast helper
     // ------------------------------------------------------------------
+
+    /**
+     * Writes a REJECTED message to a socket that has not yet been handed to a
+     * ClientHandler, then lets the caller close the socket.  The OOS header
+     * must be flushed first so the client's OIS creation doesn't deadlock.
+     */
+    private void sendRejection(Socket socket, String reason) {
+        try {
+            ObjectOutputStream rejectOut = new ObjectOutputStream(socket.getOutputStream());
+            rejectOut.flush();
+            rejectOut.writeObject(NetworkMessage.rejected(reason));
+            rejectOut.flush();
+        } catch (IOException ignored) {}
+    }
 
     /** Sends a message to all connected clients. */
     private void broadcast(NetworkMessage msg) {

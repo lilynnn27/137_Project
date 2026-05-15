@@ -1,9 +1,12 @@
 package app.utils;
 
 import javafx.scene.control.Button;
+import javafx.scene.image.Image;
 import javafx.scene.text.Font;
 import java.io.File;
 import java.io.FileInputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class UIUtils {
     public static String MAIN_FONT;
@@ -13,7 +16,7 @@ public class UIUtils {
             File fontFile = new File("assets/fonts/MainFont.ttf");
             if (fontFile.exists()) {
                 Font loadedFont = Font.loadFont(new FileInputStream(fontFile), 12);
-                MAIN_FONT = loadedFont.getFamily(); 
+                MAIN_FONT = loadedFont.getFamily();
             } else {
                 MAIN_FONT = "Arial";
             }
@@ -33,5 +36,55 @@ public class UIUtils {
         btn.setStyle(normalStyle);
         btn.setOnMouseEntered(e -> btn.setStyle(hoverStyle));
         btn.setOnMouseExited(e -> btn.setStyle(normalStyle));
+    }
+
+    /**
+     * Shared image cache — preloaded once at startup on background threads so
+     * screen constructors never block the JavaFX UI thread loading large images.
+     */
+    public static final class ImageCache {
+        private static final Map<String, Image> CACHE = new HashMap<>();
+
+        private static final String[] PRELOAD_PATHS = {
+            "assets/images/MainBackground.jpg",
+            "assets/images/GameplayBackground.jpg",
+            "assets/images/GameOverModal.png",
+            "assets/images/PlayersDough/orange.png",
+            "assets/images/PlayersDough/blue.png",
+            "assets/images/PlayersDough/green.png",
+            "assets/images/PlayersDough/red.png",
+            "assets/images/hazard/RollingPin-Hazard.png",
+            "assets/images/hazard/Ice-Hazard.png",
+            "assets/images/hazard/RottenEgg-Hazard.png",
+            "assets/images/powerup/Oil-Powerup.png",
+            "assets/images/powerup/Dough-Powerup.png",
+            "assets/images/powerup/Flour-Powerup.png"
+        };
+
+        /** Call once at app startup (before building any screen). */
+        public static void preload() {
+            for (String path : PRELOAD_PATHS) {
+                File f = new File(path);
+                if (f.exists()) {
+                    // backgroundLoading=true: loads on a background thread, never blocks UI
+                    CACHE.put(path, new Image(f.toURI().toString(), true));
+                }
+            }
+        }
+
+        /**
+         * Returns the cached image for {@code path}, or attempts a background
+         * load if not yet cached. Returns {@code null} if the file does not exist.
+         */
+        public static Image get(String path) {
+            Image img = CACHE.get(path);
+            if (img != null && !img.isError()) return img;
+            File f = new File(path);
+            if (f.exists()) {
+                img = new Image(f.toURI().toString(), true);
+                CACHE.put(path, img);
+            }
+            return img;
+        }
     }
 }

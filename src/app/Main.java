@@ -5,6 +5,7 @@ import app.screens.GamePlayScreen;
 import app.screens.LandingPageScreen;
 import app.screens.MultiplayerScreen;
 import app.screens.SinglePlayerScreen;
+import app.utils.UIUtils;
 import javafx.application.Application;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.effect.GaussianBlur;
@@ -24,6 +25,9 @@ public class Main extends Application {
     public void start(Stage primaryStage) {
         this.window = primaryStage;
         window.setTitle("137 Project - The Tray");
+
+        // Kick off background image loading before any screen is constructed
+        UIUtils.ImageCache.preload();
 
         landingPage  = new LandingPageScreen(this);
         singlePlayer = new SinglePlayerScreen(this);

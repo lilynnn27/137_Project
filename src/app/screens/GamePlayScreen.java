@@ -167,6 +167,10 @@ public class GamePlayScreen {
      * removed each frame.
      */
     private final List<PickupEntity> pickups = new ArrayList<>();
+    // Background and player sprite images — held as fields so D3D textures are never GC'd
+    private Image bgImage;
+    private Image playerSpriteImage;
+
     /** Sprite for H1 Rolling Pin hazard; null if the file is missing. */
     private Image rollingPinSprite;
     /** Nanosecond timestamp of the last Rolling Pin spawn (0 = none yet). */
@@ -278,7 +282,7 @@ public class GamePlayScreen {
         // --- Background ---
         File bgFile = new File("assets/images/GameplayBackground.jpg");
         if (bgFile.exists()) {
-            Image bgImage = new Image(bgFile.toURI().toString());
+            bgImage = new Image(bgFile.toURI().toString());
             javafx.scene.layout.BackgroundImage background = new javafx.scene.layout.BackgroundImage(
                     bgImage,
                     javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
@@ -325,8 +329,8 @@ public class GamePlayScreen {
 
         File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
         if (playerFile.exists()) {
-            Image playerImage = new Image(playerFile.toURI().toString());
-            playerSprite = new ImageView(playerImage);
+            playerSpriteImage = new Image(playerFile.toURI().toString());
+            playerSprite = new ImageView(playerSpriteImage);
             playerSprite.setPreserveRatio(true);
             playerSprite.setSmooth(true);
             playerSprite.setFitWidth(100);

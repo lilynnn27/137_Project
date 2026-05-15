@@ -1,7 +1,5 @@
 package app.screens;
 
-import java.io.File;
-
 import app.Main;
 import app.utils.UIUtils;
 import javafx.geometry.Insets;
@@ -21,6 +19,7 @@ import javafx.scene.text.Font;
 
 public class LandingPageScreen {
     private VBox root;
+    private Image bgImage; // held as field so the D3D texture is never GC'd while displayed
 
     public LandingPageScreen(Main mainApp) {
         this.root = new VBox(25);
@@ -28,9 +27,8 @@ public class LandingPageScreen {
         
         this.root.setPadding(new Insets(300, 0, 0, 0)); 
 
-        File bgFile = new File("assets/images/MainBackground.jpg");
-        if (bgFile.exists()) {
-            Image bgImage = new Image(bgFile.toURI().toString());
+        bgImage = UIUtils.ImageCache.get("assets/images/MainBackground.jpg");
+        if (bgImage != null && !bgImage.isError()) {
             BackgroundImage background = new BackgroundImage(
                     bgImage,
                     BackgroundRepeat.NO_REPEAT,
