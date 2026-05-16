@@ -86,6 +86,7 @@ public class GameServer {
     private ServerSocket serverSocket;
     private volatile boolean accepting = true;  // accept-loop flag
     private volatile boolean gameStarted = false;
+    private volatile boolean gameEnded  = false;
 
     /** True while a server is bound to the port. Checked by MultiplayerScreen to prevent double-bind. */
     private static volatile boolean serverRunning = false;
@@ -223,7 +224,24 @@ public class GameServer {
                 broadcastLobbyUpdate();
             } else {
                 broadcast(NetworkMessage.playerDied(id));
+                // Last-player-standing: if only one client remains, end the game now.
+                checkLastPlayerStanding();
             }
+        }
+    }
+
+    /**
+     * Called after a player dies/disconnects during a game.
+     * If only one live player remains, trigger endGame() immediately so the
+     * winner is determined right away rather than waiting for the timer.
+     */
+    private void checkLastPlayerStanding() {
+        if (!gameStarted) return;
+        long alive = clients.stream().filter(c -> c.getPlayerId() != -1).count();
+        if (alive <= 1) {
+            System.out.println("[Server] Last player standing — ending game early.");
+            // Run on a new thread so we don't deadlock inside the synchronized block.
+            new Thread(this::endGame, "EndGameThread").start();
         }
     }
 
@@ -324,9 +342,11 @@ public class GameServer {
     }
 
     // Game over
-    private void endGame() {
+    private synchronized void endGame() {
+        if (gameEnded) return; // guard against timer + last-standing double-fire
+        gameEnded = true;
         System.out.println("[Server] Game over — computing results.");
-        broadcastScheduler.shutdown();
+        if (broadcastScheduler != null) broadcastScheduler.shutdown();
 
         List<GameResult> results = new ArrayList<>();
         synchronized (latestStates) {

@@ -136,6 +136,8 @@ public class GamePlayScreen {
     private final List<PickupEntity> pickups = new ArrayList<>();
     private Image bgImage;
     private Image playerSpriteImage;
+    /** Dough name chosen at game start — passed to GameOverModal for the sprite. */
+    private String chosenDough;
 
     private Image rollingPinSprite;
     private long lastHazardSpawnNanos = 0;
@@ -275,7 +277,7 @@ public class GamePlayScreen {
 
         // --- Player sprite: pick a random dough at each game start ---
         String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
-        String chosenDough = doughNames[rng.nextInt(doughNames.length)];
+        chosenDough = doughNames[rng.nextInt(doughNames.length)];
         PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
 
         File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
@@ -762,7 +764,10 @@ public class GamePlayScreen {
         gameTimer.stop();
         gameLoop.stop();
 
-        GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
+        double territoryPct = territoryManager
+            .getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0;
+        String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
+        GameOverModal modal = new GameOverModal(mainApp, territoryPct, spritePath);
         modal.show();
     }
 
@@ -960,6 +965,11 @@ public class GamePlayScreen {
     }
 
     /** Removes all visual elements for a player that has died or disconnected. */
+    /**
+     * Called when the server notifies us that a remote player died.
+     * After removing them, if we are the only player left alive we trigger
+     * an immediate game-over (last player standing wins).
+     */
     private void removeRemotePlayer(int playerId) {
         ImageView sprite = remoteSprites.remove(playerId);
         if (sprite != null) world.getChildren().remove(sprite);
@@ -982,16 +992,17 @@ public class GamePlayScreen {
         gameLoop.stop();
         if (gameClient != null) gameClient.disconnect();
 
-        // Re-use GameOverModal but pass the top player's score for now.
-        // You can extend GameOverModal later to show the full leaderboard.
-        int myScore = 0;
-        for (app.network.NetworkMessage.GameResult r : results) {
-            if (r.playerId == myPlayerId) {
-                myScore = (int) r.territoryPercent;
-                break;
-            }
-        }
-        GameOverModal modal = new GameOverModal(mainApp, myScore, 100);
+        // Determine how the game ended:
+        // If there is only 1 non-dead player entry in results AND the timer
+        // still had time left, it was a last-dough-standing finish.
+        boolean lastStanding = results.size() == 1 ||
+            (results.stream().filter(r -> r.territoryPercent > 0).count() == 1);
+        GameOverModal.EndReason reason = lastStanding
+            ? GameOverModal.EndReason.LAST_STANDING
+            : GameOverModal.EndReason.TIMER;
+
+        String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
+        GameOverModal modal = new GameOverModal(mainApp, results, myPlayerId, spritePath, reason);
         modal.show();
     }
 
