@@ -58,13 +58,12 @@ public class UIUtils {
             "assets/images/powerup/Flour-Powerup.png"
         };
 
-        /** Call once at app startup (before building any screen). */
         public static void preload() {
             for (String path : PRELOAD_PATHS) {
                 File f = new File(path);
                 if (f.exists()) {
-                    // backgroundLoading=true: loads on a background thread, never blocks UI
-                    CACHE.put(path, new Image(f.toURI().toString(), true));
+                    // Downscale to max 1920x1080 to prevent D3D out-of-VRAM NPE crash
+                    CACHE.put(path, new Image(f.toURI().toString(), 1920, 1080, true, true, false));
                 }
             }
         }
@@ -74,7 +73,7 @@ public class UIUtils {
             if (img != null && !img.isError()) return img;
             File f = new File(path);
             if (f.exists()) {
-                img = new Image(f.toURI().toString(), true);
+                img = new Image(f.toURI().toString(), 1920, 1080, true, true, false);
                 CACHE.put(path, img);
             }
             return img;

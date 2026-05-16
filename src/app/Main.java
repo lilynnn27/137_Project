@@ -58,9 +58,9 @@ public class Main extends Application {
         mainScene.setRoot(multiplayer.getRoot());
     }
 
-    /** Launches the single-player game (random spawn, random color). */
-    public void showGamePlay() {
-        GamePlayScreen screen = new GamePlayScreen(this);
+    /** Launches the single-player game (random spawn, chosen color). */
+    public void showGamePlay(String chosenDough) {
+        GamePlayScreen screen = new GamePlayScreen(this, chosenDough);
         mainScene.setRoot(screen.getRoot());
         screen.getRoot().requestFocus();
     }

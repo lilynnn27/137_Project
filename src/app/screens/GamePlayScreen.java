@@ -196,7 +196,7 @@ public class GamePlayScreen {
     // -----------------------------------------------------------------------
 
     public GamePlayScreen(Main mainApp, GameClient client, double spawnX, double spawnY, String colorHex, int myPlayerId) {
-        this(mainApp); // Runs the full single-player setup first
+        this(mainApp, getDoughFromHex(colorHex)); // Runs the full setup with the correct dough color
 
         // Override defaults set by the single-player constructor
         this.gameClient    = client;
@@ -226,8 +226,20 @@ public class GamePlayScreen {
         }));
     }
 
+    // Helper to map network hex colors back to sprite names
+    private static String getDoughFromHex(String hex) {
+        if (hex == null) return "orange";
+        for (Map.Entry<String, Color> entry : DOUGH_COLORS.entrySet()) {
+            String colorHex = "#" + entry.getValue().toString().substring(2, 8).toUpperCase();
+            if (colorHex.equalsIgnoreCase(hex)) {
+                return entry.getKey();
+            }
+        }
+        return "orange";
+    }
+
     //Single Player
-    public GamePlayScreen(Main mainApp) {
+    public GamePlayScreen(Main mainApp, String doughOverride) {
         this.mainApp = mainApp;
 
         root = new Pane();
@@ -235,7 +247,7 @@ public class GamePlayScreen {
         // --- Background ---
         File bgFile = new File("assets/images/GameplayBackground.jpg");
         if (bgFile.exists()) {
-            bgImage = new Image(bgFile.toURI().toString());
+            bgImage = UIUtils.ImageCache.get("assets/images/GameplayBackground.jpg");
             javafx.scene.layout.BackgroundImage background = new javafx.scene.layout.BackgroundImage(
                     bgImage,
                     javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
@@ -275,14 +287,18 @@ public class GamePlayScreen {
         overlayGc = overlayCanvas.getGraphicsContext2D();
         world.getChildren().add(overlayCanvas);
 
-        // --- Player sprite: pick a random dough at each game start ---
-        String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
-        chosenDough = doughNames[rng.nextInt(doughNames.length)];
+        // --- Player sprite ---
+        if (doughOverride != null) {
+            chosenDough = doughOverride;
+        } else {
+            String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
+            chosenDough = doughNames[rng.nextInt(doughNames.length)];
+        }
         PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
 
         File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
         if (playerFile.exists()) {
-            playerSpriteImage = new Image(playerFile.toURI().toString());
+            playerSpriteImage = UIUtils.ImageCache.get("assets/images/PlayersDough/" + chosenDough + ".png");
             playerSprite = new ImageView(playerSpriteImage);
             playerSprite.setPreserveRatio(true);
             playerSprite.setSmooth(true);
@@ -295,32 +311,32 @@ public class GamePlayScreen {
         // --- H1 Rolling Pin hazard sprite ---
         File rpFile = new File("assets/images/hazard/RollingPin-Hazard.png");
         if (rpFile.exists()) {
-            rollingPinSprite = new Image(rpFile.toURI().toString());
+            rollingPinSprite = UIUtils.ImageCache.get("assets/images/hazard/RollingPin-Hazard.png");
         }
 
         // --- H2 Ice Spill hazard sprite ---
         File iceFile = new File("assets/images/hazard/Ice-Hazard.png");
         if (iceFile.exists()) {
-            iceSprite = new Image(iceFile.toURI().toString());
+            iceSprite = UIUtils.ImageCache.get("assets/images/hazard/Ice-Hazard.png");
         }
 
         File reFile = new File("assets/images/hazard/RottenEgg-Hazard.png");
         if (reFile.exists()) {
-            rottenEggSprite = new Image(reFile.toURI().toString());
+            rottenEggSprite = UIUtils.ImageCache.get("assets/images/hazard/RottenEgg-Hazard.png");
         }
 
         // --- Powerup sprites ---
         File oilFile = new File("assets/images/powerup/Oil-Powerup.png");
         if (oilFile.exists()) {
-            oilSprite = new Image(oilFile.toURI().toString());
+            oilSprite = UIUtils.ImageCache.get("assets/images/powerup/Oil-Powerup.png");
         }
         File doughPFile = new File("assets/images/powerup/Dough-Powerup.png");
         if (doughPFile.exists()) {
-            doughPowerupSprite = new Image(doughPFile.toURI().toString());
+            doughPowerupSprite = UIUtils.ImageCache.get("assets/images/powerup/Dough-Powerup.png");
         }
         File flourFile = new File("assets/images/powerup/Flour-Powerup.png");
         if (flourFile.exists()) {
-            flourSprite = new Image(flourFile.toURI().toString());
+            flourSprite = UIUtils.ImageCache.get("assets/images/powerup/Flour-Powerup.png");
         }
 
         // --- Starting territory centred on spawn ---
@@ -991,7 +1007,7 @@ public class GamePlayScreen {
         File imgFile = new File("assets/images/PlayersDough/" + dough + ".png");
         ImageView iv = new ImageView();
         if (imgFile.exists()) {
-            iv.setImage(new Image(imgFile.toURI().toString()));
+            iv.setImage(UIUtils.ImageCache.get("assets/images/PlayersDough/" + dough + ".png"));
         }
         iv.setFitWidth(100);
         iv.setFitHeight(100);

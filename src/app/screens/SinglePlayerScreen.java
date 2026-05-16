@@ -44,7 +44,11 @@ public class SinglePlayerScreen {
 
     // Image fields — held here so they are never GC'd while the screen is displayed
     private Image bgImage;
-    private final Image[] doughImages   = new Image[4]; // orange, blue, green, red
+    private static final String[] DOUGH_FILES = {
+            "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo"
+    };
+    private final Image[] doughImages   = new Image[DOUGH_FILES.length];
+    private int currentDoughIndex = 0;
     private final Image[] previewImages = new Image[6]; // 3 hazards + 3 powerups
 
     public SinglePlayerScreen(Main mainApp) {
@@ -52,9 +56,8 @@ public class SinglePlayerScreen {
 
         bgImage = UIUtils.ImageCache.get("assets/images/MainBackground.jpg");
 
-        String[] colors = {"orange", "blue", "green", "red"};
-        for (int i = 0; i < colors.length; i++) {
-            doughImages[i] = UIUtils.ImageCache.get("assets/images/PlayersDough/" + colors[i] + ".png");
+        for (int i = 0; i < DOUGH_FILES.length; i++) {
+            doughImages[i] = UIUtils.ImageCache.get("assets/images/PlayersDough/" + DOUGH_FILES[i] + ".png");
         }
 
         String[] pvPaths = {
@@ -99,7 +102,7 @@ public class SinglePlayerScreen {
 
         HBox slotRow = new HBox();
         slotRow.setAlignment(Pos.CENTER);
-        slotRow.getChildren().add(buildFilledSlot(doughImages[0], "Player 1"));
+        slotRow.getChildren().add(buildFilledSlot("Player 1"));
 
         VBox trayBox = new VBox(14, trayHeader, slotRow);
         trayBox.setAlignment(Pos.CENTER);
@@ -110,7 +113,7 @@ public class SinglePlayerScreen {
         btnPlay.setStyle(BTN_PRI_N);
         btnPlay.setOnMouseEntered(e -> btnPlay.setStyle(BTN_PRI_H));
         btnPlay.setOnMouseExited (e -> btnPlay.setStyle(BTN_PRI_N));
-        btnPlay.setOnAction(e -> mainApp.showGamePlay());
+        btnPlay.setOnAction(e -> mainApp.showGamePlay(DOUGH_FILES[currentDoughIndex]));
 
         Button btnBack = new Button("Back to Menu");
         btnBack.setFont(Font.font(UIUtils.MAIN_FONT, 20));
@@ -128,7 +131,7 @@ public class SinglePlayerScreen {
         root.getChildren().add(content);
     }
 
-    private StackPane buildFilledSlot(Image img, String playerName) {
+    private StackPane buildFilledSlot(String playerName) {
         StackPane slot = new StackPane();
         slot.setPrefSize(260, 260);
         slot.setStyle(
@@ -136,12 +139,30 @@ public class SinglePlayerScreen {
             "-fx-border-color:#b89664;-fx-border-width:4;-fx-border-radius:16;"
         );
         ImageView icon = new ImageView();
-        if (img != null && !img.isError()) icon.setImage(img);
+        icon.setImage(doughImages[currentDoughIndex]);
         icon.setFitWidth(140); icon.setFitHeight(140); icon.setPreserveRatio(true);
+
+        Button leftBtn = new Button("<");
+        leftBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #b89664; -fx-font-size: 28px; -fx-font-weight: bold; -fx-cursor: hand;");
+        leftBtn.setOnAction(e -> {
+            currentDoughIndex = (currentDoughIndex - 1 + DOUGH_FILES.length) % DOUGH_FILES.length;
+            icon.setImage(doughImages[currentDoughIndex]);
+        });
+
+        Button rightBtn = new Button(">");
+        rightBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #b89664; -fx-font-size: 28px; -fx-font-weight: bold; -fx-cursor: hand;");
+        rightBtn.setOnAction(e -> {
+            currentDoughIndex = (currentDoughIndex + 1) % DOUGH_FILES.length;
+            icon.setImage(doughImages[currentDoughIndex]);
+        });
+
+        HBox imageRow = new HBox(5, leftBtn, icon, rightBtn);
+        imageRow.setAlignment(Pos.CENTER);
+
         Label name = new Label(playerName);
         name.setFont(Font.font(UIUtils.MAIN_FONT, 26));
         name.setStyle("-fx-text-fill:#f5e6c8;");
-        VBox inner = new VBox(20, icon, name);
+        VBox inner = new VBox(20, imageRow, name);
         inner.setAlignment(Pos.CENTER);
         slot.getChildren().add(inner);
         return slot;

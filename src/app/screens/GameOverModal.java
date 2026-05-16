@@ -176,7 +176,14 @@ public class GameOverModal {
 
         if (!isMultiplayer) {
             Button retry = btn("Retry", btnSz);
-            retry.setOnAction(e -> { window.close(); mainApp.showGamePlay(); });
+            retry.setOnAction(e -> { 
+                window.close(); 
+                String dough = "orange";
+                if (mySpritePath != null) {
+                    dough = mySpritePath.substring(mySpritePath.lastIndexOf('/') + 1).replace(".png", "");
+                }
+                mainApp.showGamePlay(dough); 
+            });
             btnRow.getChildren().add(retry);
         } else {
             // Issue 4: multiplayer gets a "Play Again" button that returns to the
@@ -449,10 +456,7 @@ public class GameOverModal {
 
     private static Image loadSprite(String path) {
         if (path == null) return null;
-        Image cached = UIUtils.ImageCache.get(path);
-        if (cached != null && !cached.isError()) return cached;
-        File f = new File(path);
-        return f.exists() ? new Image(f.toURI().toString()) : null;
+        return UIUtils.ImageCache.get(path);
     }
 
     /**
@@ -463,14 +467,7 @@ public class GameOverModal {
      */
     private static Image loadSpriteSync(String path) {
         if (path == null) return null;
-        File f = new File(path);
-        if (!f.exists()) return null;
-        try {
-            return new Image(f.toURI().toString()); // backgroundLoading defaults to false
-        } catch (Exception e) {
-            System.err.println("[GameOverModal] Could not load sprite: " + path);
-            return null;
-        }
+        return UIUtils.ImageCache.get(path);
     }
 
     private static double clamp(double v, double min, double max) {
