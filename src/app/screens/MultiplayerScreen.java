@@ -41,33 +41,33 @@ public class MultiplayerScreen {
     // Ready button states
     private static final String NORMAL_STYLE = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
     private static final String NORMAL_STYLE_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN
             + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
     private static final String READY_STYLE = "-fx-background-color: #4CAF50; -fx-text-fill: white; " +
             "-fx-border-color: #4CAF50; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
     private static final String DISABLED_STYLE = "-fx-background-color: transparent; -fx-text-fill: #555555; " +
             "-fx-border-color: #555555; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-font-weight: bold;";
+            "-fx-padding: 15 40; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
 
     // General action buttons (Host, Join)
     private static final String BTN_NORMAL = "-fx-background-color: " + ORANGE + "; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
     private static final String BTN_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
             "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
 
     // Secondary button (Back to Menu)
     private static final String BTN_SEC_N = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
     private static final String BTN_SEC_H = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
 
     private void styleLocalButton(Button btn) {
         btn.setFont(Font.font(UIUtils.MAIN_FONT, 20));
@@ -137,7 +137,8 @@ public class MultiplayerScreen {
         // Connection inputs
         String fieldStyle = "-fx-background-color: rgba(20,15,18,0.7); -fx-text-fill: " + CREAM + "; " +
                 "-fx-prompt-text-fill: #888888; " +
-                "-fx-border-color: " + GOLD + "; -fx-border-radius: 4; -fx-padding: 6 10; -fx-font-weight: bold;";
+                "-fx-border-color: " + GOLD + "; -fx-border-radius: 4; -fx-padding: 6 10; " +
+                "-fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 16px;";
 
         nameField = new TextField("Player");
         nameField.setPromptText("Your name");
