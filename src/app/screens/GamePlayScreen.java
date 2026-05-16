@@ -10,19 +10,19 @@ import java.util.Set;
 
 import app.Main;
 import app.game_hud.StatOverlay;
-import app.utils.UIUtils;
+import app.game_logic.BiggerSizePowerup;
 import app.game_logic.FreezeHazard;
 import app.game_logic.PickupEntity;
 import app.game_logic.ReverseControlsHazard;
 import app.game_logic.SlowingHazard;
-import app.game_logic.TerritoryManager;
 import app.game_logic.SpeedPowerup;
-import app.game_logic.BiggerSizePowerup;
-import app.game_logic.TransparentTrailPowerup;
+import app.game_logic.TerritoryManager;
 import app.game_logic.Timer;
 import app.game_logic.TrailManager;
+import app.game_logic.TransparentTrailPowerup;
 import app.network.GameClient;
 import app.network.NetworkMessage.PlayerState;
+import app.utils.UIUtils;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -54,60 +54,40 @@ public class GamePlayScreen {
 
     private final TrailManager trailManager = new TrailManager();
     private final TerritoryManager territoryManager = new TerritoryManager();
-    /**
-     * Other players' trail managers — populated by multiplayer. Empty in
-     * single-player.
-     */
     private final List<TrailManager> enemyTrailManagers = new ArrayList<>();
 
-    /** Canvas for territory fill + trail (redrawn every frame). */
     private final Canvas overlayCanvas;
     private final GraphicsContext overlayGc;
 
-    /** Player visual */
     private ImageView playerSprite;
 
     // ---- Multiplayer networking ----
-    /** Non-null when running in multiplayer mode. */
     private GameClient gameClient;
-    /** This client's player ID (assigned by server). -1 in single-player. */
     private int myPlayerId = -1;
-    /**
-     * Canvases for remote players' territory + trails.
-     * One entry per remote player, keyed by their playerId.
-     */
-    private final java.util.Map<Integer, Canvas>       remoteOverlays  = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, ImageView>    remoteSprites   = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, TrailManager> remoteTrails    = new java.util.LinkedHashMap<>();
+    
+    private final java.util.Map<Integer, Canvas> remoteOverlays = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, ImageView> remoteSprites = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, TrailManager> remoteTrails = new java.util.LinkedHashMap<>();
     private final java.util.Map<Integer, TerritoryManager> remoteTerritories = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, Color>        remoteColors    = new java.util.LinkedHashMap<>();
-    /** How many frames to skip between network sends (send every Nth frame). */
+    private final java.util.Map<Integer, Color> remoteColors = new java.util.LinkedHashMap<>();
     private static final int NET_SEND_INTERVAL = 3;
     private int netFrameCounter = 0;
 
-    /** Player world-space position */
     private double playerX = 0;
     private double playerY = 0;
     private final double SPEED = 2.5;
 
-    /**
-     * Multiplier applied to SPEED. Modified by hazards (e.g. SlowingHazard = 0.70).
-     */
     private double speedMultiplier = 1.0;
-    /**
-     * Nanosecond timestamp when the current speed effect should expire (0 = no
-     * effect).
-     */
     private long speedEffectEndNanos = 0;
 
-    /** Current movement direction (unit vector) */
+    // Current movement direction 
     Set<KeyCode> pressedKeys = new HashSet<>();
     private double dirX = 1;
     private double dirY = 0;
     private double lastDirX = 1;
     private double lastDirY = 0;
 
-    // ** for smoothness when using keyboard keys */
+    // Keyboard keys smoothness
     private double targetDirX = 1;
     private double targetDirY = 0;
     private final double TURN_SMOOTHNESS = 0.15;
@@ -118,16 +98,10 @@ public class GamePlayScreen {
 
     private InputMode activeInputMode = InputMode.KEYBOARD;
 
-    /** World radius */
     private final double WORLD_RADIUS = 1500;
 
-    /** Player dough color — derived from the randomly chosen dough sprite. */
     private final Color PLAYER_COLOR;
 
-    /**
-     * Maps each dough filename (without extension) to its representative color.
-     * Colors are picked to closely match the actual sprite tones.
-     */
     private static final Map<String, Color> DOUGH_COLORS = Map.of(
             "orange", Color.web("#FF7043"),
             "red", Color.web("#E53935"),
@@ -138,7 +112,6 @@ public class GamePlayScreen {
             "purple", Color.web("#8E24AA"),
             "indigo", Color.web("#3949AB"));
 
-    /** HUD labels */
     private final Label territoryLabel;
     private final ProgressBar powerUpBar;
     private Label timerLabel;
@@ -146,34 +119,27 @@ public class GamePlayScreen {
     private String myPlayerName = "You";
     private StatOverlay statOverlay;
     private final Map<Integer, Double> remoteTerritoryPercents = new java.util.LinkedHashMap<>();
-    private final Map<Integer, String> remotePlayerNames       = new java.util.LinkedHashMap<>();
+    private final Map<Integer, String> remotePlayerNames = new java.util.LinkedHashMap<>();
 
-    private VBox    chatBox;
-    private VBox    chatMessageArea;
+    private VBox chatBox;
+    private VBox chatMessageArea;
     private boolean chatExpanded = false;
 
-    /** Hex ownership counters (used by GameOverModal). */
     private int ownedHexCount = 0;
     private final int totalHexCount = 1000;
 
-    /** True while the player is outside their territory (trail is active). */
+    //tack active trail
     private boolean outsideTerritory = false;
 
-    /** True once any death condition has fired — prevents double-invocation. */
     private boolean isDead = false;
 
-    /**
-     * Active pickups on the map (hazards + power-ups). Despawned entries are
-     * removed each frame.
-     */
     private final List<PickupEntity> pickups = new ArrayList<>();
-    // Background and player sprite images — held as fields so D3D textures are never GC'd
     private Image bgImage;
     private Image playerSpriteImage;
+    /** Dough name chosen at game start — passed to GameOverModal for the sprite. */
+    private String chosenDough;
 
-    /** Sprite for H1 Rolling Pin hazard; null if the file is missing. */
     private Image rollingPinSprite;
-    /** Nanosecond timestamp of the last Rolling Pin spawn (0 = none yet). */
     private long lastHazardSpawnNanos = 0;
     /** How often to spawn a new Rolling Pin hazard (8 seconds). */
     private static final long HAZARD_SPAWN_INTERVAL_NANOS = 8_000_000_000L;
@@ -229,20 +195,7 @@ public class GamePlayScreen {
     // Constructor / Setup
     // -----------------------------------------------------------------------
 
-    /**
-     * Multiplayer constructor — spawns at server-assigned position with a
-     * fixed color, and sends position updates to the server each frame.
-     *
-     * @param mainApp    The main application.
-     * @param client     Already-connected {@link GameClient}.
-     * @param spawnX     World-space X assigned by the server.
-     * @param spawnY     World-space Y assigned by the server.
-     * @param colorHex   CSS color string (e.g. "#FF7043").
-     * @param myPlayerId This client's ID.
-     */
-    public GamePlayScreen(Main mainApp, GameClient client,
-                          double spawnX, double spawnY,
-                          String colorHex, int myPlayerId) {
+    public GamePlayScreen(Main mainApp, GameClient client, double spawnX, double spawnY, String colorHex, int myPlayerId) {
         this(mainApp); // Runs the full single-player setup first
 
         // Override defaults set by the single-player constructor
@@ -273,7 +226,7 @@ public class GamePlayScreen {
         }));
     }
 
-    /** Single-player constructor (original). */
+    //Single Player
     public GamePlayScreen(Main mainApp) {
         this.mainApp = mainApp;
 
@@ -324,7 +277,7 @@ public class GamePlayScreen {
 
         // --- Player sprite: pick a random dough at each game start ---
         String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
-        String chosenDough = doughNames[rng.nextInt(doughNames.length)];
+        chosenDough = doughNames[rng.nextInt(doughNames.length)];
         PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
 
         File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
@@ -399,6 +352,10 @@ public class GamePlayScreen {
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {
                     System.out.println("Timer reached zero!");
+                    // Issue 2: In multiplayer the server owns the timer and will
+                    // broadcast GAME_OVER — the client-side timer must NOT also
+                    // trigger showGameOver() or the two will conflict.
+                    if (gameClient != null) return;
                     if (!isDead) {
                         isDead = true;
                         showGameOver();
@@ -414,9 +371,6 @@ public class GamePlayScreen {
         chatPlaceholder.setFont(Font.font(UIUtils.MAIN_FONT, 13));
         chatPlaceholder.setStyle("-fx-text-fill: #666666;");
         chatMessageArea.getChildren().add(chatPlaceholder);
-
-        // TODO: wire in multiplayer messages here —
-        //   add Label entries to chatMessageArea when the network layer delivers chat events
 
         ScrollPane chatScroll = new ScrollPane(chatMessageArea);
         chatScroll.setPrefWidth(256);
@@ -803,7 +757,38 @@ public class GamePlayScreen {
         biggerSizeEndNanos = 0;
         isTrailTransparent = false;
         transparentEndNanos = 0;
-        showGameOver();
+
+        if (gameClient != null) {
+            // Issue 1: Multiplayer — show game-over immediately for this (dead) player
+            // while others may still be playing. Build a snapshot of known results.
+            java.util.List<app.network.NetworkMessage.GameResult> snapshot = new java.util.ArrayList<>();
+
+            // Local player just died — territory is 0
+            String myHex = "#" + PLAYER_COLOR.toString().substring(2, 8).toUpperCase();
+            snapshot.add(new app.network.NetworkMessage.GameResult(
+                    myPlayerId, myPlayerName, myHex, 0.0, 0));
+
+            for (java.util.Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
+                int id     = entry.getKey();
+                Color col  = entry.getValue();
+                double pct = remoteTerritoryPercents.getOrDefault(id, 0.0);
+                String name = remotePlayerNames.getOrDefault(id, "Player " + id);
+                String hex  = "#" + col.toString().substring(2, 8).toUpperCase();
+                snapshot.add(new app.network.NetworkMessage.GameResult(id, name, hex, pct, 0));
+            }
+
+            // Sort descending by territory %, assign ranks
+            snapshot.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+            for (int i = 0; i < snapshot.size(); i++) snapshot.get(i).rank = i + 1;
+
+            // Disconnect so the server detects this player left and triggers
+            // checkLastPlayerStanding() for the remaining players.
+            gameClient.disconnect();
+
+            showMultiplayerGameOver(snapshot);
+        } else {
+            showGameOver();
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -814,7 +799,10 @@ public class GamePlayScreen {
         gameTimer.stop();
         gameLoop.stop();
 
-        GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
+        double territoryPct = territoryManager
+            .getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0;
+        String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
+        GameOverModal modal = new GameOverModal(mainApp, territoryPct, spritePath);
         modal.show();
     }
 
@@ -998,10 +986,10 @@ public class GamePlayScreen {
 
     /** Creates an ImageView for a remote player sprite using the color-matched dough image. */
     private ImageView createRemoteSprite(String colorHex) {
-        String[] names  = { "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo" };
-        String dough    = names[Math.abs(colorHex.hashCode()) % names.length];
-        File   imgFile  = new File("assets/images/PlayersDough/" + dough + ".png");
-        ImageView iv    = new ImageView();
+        String[] names = { "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo" };
+        String dough = names[Math.abs(colorHex.hashCode()) % names.length];
+        File imgFile = new File("assets/images/PlayersDough/" + dough + ".png");
+        ImageView iv = new ImageView();
         if (imgFile.exists()) {
             iv.setImage(new Image(imgFile.toURI().toString()));
         }
@@ -1012,6 +1000,11 @@ public class GamePlayScreen {
     }
 
     /** Removes all visual elements for a player that has died or disconnected. */
+    /**
+     * Called when the server notifies us that a remote player died.
+     * After removing them, if we are the only player left alive we trigger
+     * an immediate game-over (last player standing wins).
+     */
     private void removeRemotePlayer(int playerId) {
         ImageView sprite = remoteSprites.remove(playerId);
         if (sprite != null) world.getChildren().remove(sprite);
@@ -1026,24 +1019,27 @@ public class GamePlayScreen {
     }
 
     /**
-     * Shows the game-over screen with the server-provided leaderboard.
+     * Shows the game-over screen with the server-provided (or locally-built) leaderboard.
+     * Safe to call after gameClient.disconnect() has already been invoked.
      * Used in multiplayer mode instead of the single-player GameOverModal.
      */
     private void showMultiplayerGameOver(java.util.List<app.network.NetworkMessage.GameResult> results) {
         gameTimer.stop();
         gameLoop.stop();
-        if (gameClient != null) gameClient.disconnect();
+        // Disconnect only if still connected (handleDeath may have already done this)
+        if (gameClient != null && gameClient.isConnected()) gameClient.disconnect();
 
-        // Re-use GameOverModal but pass the top player's score for now.
-        // You can extend GameOverModal later to show the full leaderboard.
-        int myScore = 0;
-        for (app.network.NetworkMessage.GameResult r : results) {
-            if (r.playerId == myPlayerId) {
-                myScore = (int) r.territoryPercent;
-                break;
-            }
-        }
-        GameOverModal modal = new GameOverModal(mainApp, myScore, 100);
+        // Determine how the game ended:
+        // LAST_STANDING if exactly one player has territory > 0, meaning all others
+        // have died (including the local player who just died at 0%).
+        long withTerritory = results.stream().filter(r -> r.territoryPercent > 0).count();
+        boolean lastStanding = (withTerritory <= 1);
+        GameOverModal.EndReason reason = lastStanding
+            ? GameOverModal.EndReason.LAST_STANDING
+            : GameOverModal.EndReason.TIMER;
+
+        String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
+        GameOverModal modal = new GameOverModal(mainApp, results, myPlayerId, spritePath, reason);
         modal.show();
     }
 

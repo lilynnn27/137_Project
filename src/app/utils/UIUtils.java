@@ -1,12 +1,13 @@
 package app.utils;
 
-import javafx.scene.control.Button;
-import javafx.scene.image.Image;
-import javafx.scene.text.Font;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
+
+import javafx.scene.control.Button;
+import javafx.scene.image.Image;
+import javafx.scene.text.Font;
 
 public class UIUtils {
     public static String MAIN_FONT;
@@ -38,10 +39,6 @@ public class UIUtils {
         btn.setOnMouseExited(e -> btn.setStyle(normalStyle));
     }
 
-    /**
-     * Shared image cache — preloaded once at startup on background threads so
-     * screen constructors never block the JavaFX UI thread loading large images.
-     */
     public static final class ImageCache {
         private static final Map<String, Image> CACHE = new HashMap<>();
 
@@ -72,10 +69,6 @@ public class UIUtils {
             }
         }
 
-        /**
-         * Returns the cached image for {@code path}, or attempts a background
-         * load if not yet cached. Returns {@code null} if the file does not exist.
-         */
         public static Image get(String path) {
             Image img = CACHE.get(path);
             if (img != null && !img.isError()) return img;
