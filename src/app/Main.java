@@ -80,6 +80,9 @@ public class Main extends Application {
     }
 
     public void setBackgroundBlur(boolean apply) {
+        // Disabled because applying a GaussianBlur effect to the 3000x3000 GamePlayScreen root 
+        // requires a massive RTTexture allocation which crashes Direct3D with an out-of-VRAM NPE.
+        /*
         if (apply) {
             GaussianBlur blur = new GaussianBlur(15);
             ColorAdjust  darken = new ColorAdjust();
@@ -89,6 +92,7 @@ public class Main extends Application {
         } else {
             window.getScene().getRoot().setEffect(null);
         }
+        */
     }
 
     public void exitGame() {

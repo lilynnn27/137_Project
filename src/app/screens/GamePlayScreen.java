@@ -614,6 +614,9 @@ public class GamePlayScreen {
         // --- Render overlay (territory + trail) ---
         overlayGc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
         overlayGc.save();
+        overlayGc.beginPath();
+        overlayGc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
+        overlayGc.clip();
         overlayGc.translate(WORLD_RADIUS, WORLD_RADIUS);
         territoryManager.drawTerritory(overlayGc, PLAYER_COLOR);
         trailManager.draw(overlayGc, PLAYER_COLOR);
@@ -860,6 +863,11 @@ public class GamePlayScreen {
     // -----------------------------------------------------------------------
 
     private void drawHexGrid(GraphicsContext gc) {
+        gc.save();
+        gc.beginPath();
+        gc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
+        gc.clip();
+
         gc.setStroke(Color.web("#e0d5ba"));
         gc.setLineWidth(1.0);
 
@@ -888,6 +896,7 @@ public class GamePlayScreen {
                 }
             }
         }
+        gc.restore();
     }
 
     // -----------------------------------------------------------------------
@@ -951,6 +960,9 @@ public class GamePlayScreen {
             GraphicsContext gc = overlay.getGraphicsContext2D();
             gc.clearRect(0, 0, overlay.getWidth(), overlay.getHeight());
             gc.save();
+            gc.beginPath();
+            gc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
+            gc.clip();
             gc.translate(WORLD_RADIUS, WORLD_RADIUS);
             drawRemoteTrail(gc, state.trailPoints, color);
             gc.restore();

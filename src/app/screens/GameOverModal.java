@@ -134,20 +134,17 @@ public class GameOverModal {
         // after the content is built, so the background always covers exactly what
         // is inside and nothing overflows.
         double sw = mainApp.getPrimaryStage().getWidth();
-        double sh = mainApp.getPrimaryStage().getHeight();
         double mw = clamp(sw * 0.68, 600, 1200);
-        // mh is used only as a scaling reference for internal spacing; the window
-        // height is determined by sizeToScene() below.
-        double mh = clamp(sh * 0.75, 460, 860);
+        
+        // The tray image is exactly 666x375. Calculate the exact physical height it will take 
+        // to ensure all vertical padding and gaps scale properly within the graphic.
+        double imgRatio = 375.0 / 666.0;
+        double mh = mw * imgRatio;
 
-        // ── Background image ─────────────────────────────────────────
-        // Load synchronously (no background thread) so the image is fully
-        // decoded before it is painted. Bind to StackPane size so it always
-        // stretches to cover the full content area.
-        ImageView bg = new ImageView();
         Image bgSync = loadSpriteSync("assets/images/GameOverModal.png");
-        if (bgSync != null) bg.setImage(bgSync);
-        bg.setPreserveRatio(false);
+        ImageView bg = new ImageView(bgSync);
+        bg.setPreserveRatio(true);
+        bg.setFitWidth(mw);
 
         // ── Title ────────────────────────────────────────────────────
         double titleSz  = clamp(mw * 0.055, 28, 72);
@@ -198,31 +195,36 @@ public class GameOverModal {
 
         // ── Assemble ─────────────────────────────────────────────────
         double vGap = clamp(mh * 0.018, 6, 20);
-        double vPad = clamp(mh * 0.04,  16, 44);
-        double hPad = clamp(mw * 0.06,  24, 80);
+        
+        // Pad heavily so the text stays strictly inside the "tray" graphic borders
+        double vPad = mh * 0.20; 
+        double hPad = mw * 0.18;
+        
         VBox content = new VBox(vGap, titleStack, subtitleLbl, centre, btnRow);
         content.setAlignment(Pos.CENTER);
         content.setPadding(new Insets(vPad, hPad, vPad, hPad));
+        
+        // Ensure the content doesn't force the StackPane to grow larger than the image
+        content.setMaxSize(mw, mh);
 
         StackPane root = new StackPane(bg, content);
-        root.setBackground(null);
-
-        // Bind background to the StackPane so it always stretches to cover
-        // however tall the content turns out to be.
-        bg.fitWidthProperty().bind(root.widthProperty());
-        bg.fitHeightProperty().bind(root.heightProperty());
+        root.setBackground(new javafx.scene.layout.Background(
+                new javafx.scene.layout.BackgroundFill(Color.TRANSPARENT, null, null)));
 
         Scene scene = new Scene(root);
         scene.setFill(Color.TRANSPARENT);
 
         window.setWidth(mw);
         window.setScene(scene);
-        // sizeToScene() sets the window height to exactly fit the content,
-        // eliminating any overflow or clipping.
         window.sizeToScene();
-        window.centerOnScreen();
-        window.setOnHidden(e -> mainApp.setBackgroundBlur(false));
         window.show();
+        
+        // Center the modal precisely over the main game window
+        Stage mainStage = mainApp.getPrimaryStage();
+        window.setX(mainStage.getX() + (mainStage.getWidth() - window.getWidth()) / 2.0);
+        window.setY(mainStage.getY() + (mainStage.getHeight() - window.getHeight()) / 2.0);
+        
+        window.setOnHidden(e -> mainApp.setBackgroundBlur(false));
     }
 
     // ────────────────────────────────────────────────────────────────────
