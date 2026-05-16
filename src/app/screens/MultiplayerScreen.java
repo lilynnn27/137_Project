@@ -49,49 +49,42 @@ public class MultiplayerScreen {
     };
 
     // Warm kitchen color palette
-    private static final String CREAM  = "#f5e6c8";
-    private static final String BROWN  = "#3d282e";
+    private static final String CREAM = "#f5e6c8";
+    private static final String BROWN = "#3d282e";
     private static final String ORANGE = "#c46a2d";
-    private static final String GOLD   = "#b89664";
-    private static final String MUTED  = "#888888";
+    private static final String GOLD = "#b89664";
+    private static final String MUTED = "#888888";
 
     // Ready button states
-    private static final String NORMAL_STYLE =
-        "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
-        "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-        "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
-    private static final String NORMAL_STYLE_HOVER =
-        "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
-        "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-        "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
-    private static final String READY_STYLE =
-        "-fx-background-color: #4CAF50; -fx-text-fill: white; " +
-        "-fx-border-color: #4CAF50; -fx-border-width: 2px; " +
-        "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
-    private static final String DISABLED_STYLE =
-        "-fx-background-color: transparent; -fx-text-fill: #555555; " +
-        "-fx-border-color: #555555; -fx-border-width: 2px; " +
-        "-fx-padding: 15 40; -fx-font-weight: bold;";
+    private static final String NORMAL_STYLE = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
+            "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String NORMAL_STYLE_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN
+            + "; " +
+            "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String READY_STYLE = "-fx-background-color: #4CAF50; -fx-text-fill: white; " +
+            "-fx-border-color: #4CAF50; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String DISABLED_STYLE = "-fx-background-color: transparent; -fx-text-fill: #555555; " +
+            "-fx-border-color: #555555; -fx-border-width: 2px; " +
+            "-fx-padding: 15 40; -fx-font-weight: bold;";
 
     // General action buttons (Host, Join)
-    private static final String BTN_NORMAL =
-        "-fx-background-color: " + ORANGE + "; -fx-text-fill: " + CREAM + "; " +
-        "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
-        "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
-    private static final String BTN_HOVER =
-        "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
-        "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
-        "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String BTN_NORMAL = "-fx-background-color: " + ORANGE + "; -fx-text-fill: " + CREAM + "; " +
+            "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String BTN_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
+            "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
 
     // Secondary button (Back to Menu)
-    private static final String BTN_SEC_N =
-        "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
-        "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-        "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
-    private static final String BTN_SEC_H =
-        "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
-        "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-        "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String BTN_SEC_N = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
+            "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
+    private static final String BTN_SEC_H = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
+            "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold;";
 
     private void styleLocalButton(Button btn) {
         btn.setFont(Font.font(UIUtils.MAIN_FONT, 20));
@@ -117,6 +110,7 @@ public class MultiplayerScreen {
     private Button readyBtn;
     private TextField nameField;
     private TextField ipField;
+    private String currentServerIp = "";
 
     private boolean isReady = false;
     private boolean isConnected = false;
@@ -124,8 +118,8 @@ public class MultiplayerScreen {
     // Image fields — held here so they are never GC'd while the screen is displayed
     private Image bgImage;
     private Image arenaPreviewBgImage;
-    private final Image[] doughImages   = new Image[DOUGH_FILES.length]; // all 8 colors
-    private final Image[] previewImages = new Image[6];                  // 3 hazards + 3 powerups
+    private final Image[] doughImages = new Image[DOUGH_FILES.length]; // all 8 colors
+    private final Image[] previewImages = new Image[6]; // 3 hazards + 3 powerups
 
     // ------------------------------------------------------------------
     // Constructor
@@ -143,12 +137,12 @@ public class MultiplayerScreen {
         arenaPreviewBgImage = UIUtils.ImageCache.get("assets/images/GameplayBackground.jpg");
 
         String[] pvPaths = {
-            "assets/images/hazard/RollingPin-Hazard.png",
-            "assets/images/hazard/Ice-Hazard.png",
-            "assets/images/hazard/RottenEgg-Hazard.png",
-            "assets/images/powerup/Oil-Powerup.png",
-            "assets/images/powerup/Dough-Powerup.png",
-            "assets/images/powerup/Flour-Powerup.png"
+                "assets/images/hazard/RollingPin-Hazard.png",
+                "assets/images/hazard/Ice-Hazard.png",
+                "assets/images/hazard/RottenEgg-Hazard.png",
+                "assets/images/powerup/Oil-Powerup.png",
+                "assets/images/powerup/Dough-Powerup.png",
+                "assets/images/powerup/Flour-Powerup.png"
         };
         for (int i = 0; i < pvPaths.length; i++) {
             previewImages[i] = UIUtils.ImageCache.get(pvPaths[i]);
@@ -167,10 +161,9 @@ public class MultiplayerScreen {
         titleBox.setAlignment(Pos.CENTER);
 
         // Connection inputs
-        String fieldStyle =
-            "-fx-background-color: rgba(20,15,18,0.7); -fx-text-fill: " + CREAM + "; " +
-            "-fx-prompt-text-fill: #888888; " +
-            "-fx-border-color: " + GOLD + "; -fx-border-radius: 4; -fx-padding: 6 10; -fx-font-weight: bold;";
+        String fieldStyle = "-fx-background-color: rgba(20,15,18,0.7); -fx-text-fill: " + CREAM + "; " +
+                "-fx-prompt-text-fill: #888888; " +
+                "-fx-border-color: " + GOLD + "; -fx-border-radius: 4; -fx-padding: 6 10; -fx-font-weight: bold;";
 
         nameField = new TextField("Player");
         nameField.setPromptText("Your name");
@@ -178,8 +171,8 @@ public class MultiplayerScreen {
         nameField.setFont(Font.font(UIUtils.MAIN_FONT, 16));
         nameField.setStyle(fieldStyle);
 
-        ipField = new TextField("localhost");
-        ipField.setPromptText("Server IP (for Join)");
+        ipField = new TextField("");
+        ipField.setPromptText("Server IP or Code");
         ipField.setMaxWidth(180);
         ipField.setFont(Font.font(UIUtils.MAIN_FONT, 16));
         ipField.setStyle(fieldStyle);
@@ -200,8 +193,7 @@ public class MultiplayerScreen {
         playerList.setAlignment(Pos.CENTER_LEFT);
         playerList.setPadding(new Insets(20));
         playerList.setStyle(
-            "-fx-background-color: rgba(15,10,12,0.82); -fx-background-radius: 12;"
-        );
+                "-fx-background-color: rgba(15,10,12,0.82); -fx-background-radius: 12;");
 
         Label listHeader = new Label("Players");
         listHeader.setFont(Font.font(UIUtils.MAIN_FONT, 26));
@@ -218,7 +210,8 @@ public class MultiplayerScreen {
         scrollPane.setMaxSize(350, 350);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-control-inner-background: transparent;");
+        scrollPane.setStyle(
+                "-fx-background-color: transparent; -fx-background: transparent; -fx-control-inner-background: transparent;");
 
         StackPane arenaPreview = buildArenaPreview();
 
@@ -291,7 +284,41 @@ public class MultiplayerScreen {
             serverThread = new Thread(gameServer::start, "GameServer");
             serverThread.setDaemon(true);
             serverThread.start();
-            setStatus("Server started — waiting for players…", "#4CAF50");
+
+            String ipAddress = "127.0.0.1";
+            try {
+                java.util.Enumeration<java.net.NetworkInterface> interfaces = java.net.NetworkInterface
+                        .getNetworkInterfaces();
+                while (interfaces.hasMoreElements()) {
+                    java.net.NetworkInterface iface = interfaces.nextElement();
+                    if (iface.isLoopback() || !iface.isUp() || iface.isVirtual())
+                        continue;
+
+                    java.util.Enumeration<java.net.InetAddress> addresses = iface.getInetAddresses();
+                    while (addresses.hasMoreElements()) {
+                        java.net.InetAddress addr = addresses.nextElement();
+                        if (addr instanceof java.net.Inet4Address) {
+                            String hostAddr = addr.getHostAddress();
+                            // Prioritize non-virtual looking interfaces if possible, but take the first we
+                            // get
+                            ipAddress = hostAddr;
+                            // If it's a typical local subnet, we can break. Otherwise we keep searching.
+                            if (hostAddr.startsWith("192.168.") || hostAddr.startsWith("10.")
+                                    || hostAddr.startsWith("172.")) {
+                                break;
+                            }
+                        }
+                    }
+                    if (ipAddress.startsWith("192.168.") || ipAddress.startsWith("10.")
+                            || ipAddress.startsWith("172.")) {
+                        break; // Found a preferred LAN IP
+                    }
+                }
+            } catch (Exception e) {
+                // fallback
+            }
+            currentServerIp = ipAddress;
+            setStatus("Server started at " + currentServerIp + " — waiting for players…", "#4CAF50");
         } else {
             setStatus("Server already running — connecting…", "#FFA726");
         }
@@ -309,7 +336,8 @@ public class MultiplayerScreen {
     }
 
     private void joinGame() {
-        if (isConnected) return;
+        if (isConnected)
+            return;
 
         String name = nameField.getText().trim();
         if (name.isEmpty())
@@ -318,6 +346,15 @@ public class MultiplayerScreen {
         if (ip.isEmpty())
             ip = "localhost";
 
+        // If the user entered a code instead of an IP address
+        if (!ip.contains(".") && !ip.equalsIgnoreCase("localhost")) {
+            ip = decodeIp(ip);
+        }
+
+        // If we are hosting, keep the LAN IP we already found
+        if (!GameServer.isServerRunning()) {
+            currentServerIp = ip;
+        }
         setStatus("Connecting to " + ip + "…", "#FFA726");
 
         final String finalName = name;
@@ -378,8 +415,42 @@ public class MultiplayerScreen {
         }
 
         long readyCount = players.stream().filter(p -> p.isReady).count();
-        setStatus("Players: " + players.size() + "/" + GameServer.MIN_PLAYERS
+        String prefix = "";
+        if (currentServerIp != null && !currentServerIp.isEmpty()) {
+            String code = encodeIp(currentServerIp);
+            prefix = "Host IP: " + currentServerIp + "  |  Code: " + code + "  |  ";
+        }
+        setStatus(prefix + "Players: " + players.size() + "/" + GameServer.MIN_PLAYERS
                 + "  |  Ready: " + readyCount + "/" + players.size(), MUTED);
+    }
+
+    private String encodeIp(String ip) {
+        if (ip.equals("localhost") || ip.equals("127.0.0.1"))
+            return "LOCAL";
+        try {
+            String[] parts = ip.split("\\.");
+            long num = 0;
+            for (int i = 0; i < 4; i++) {
+                num = (num << 8) | Integer.parseInt(parts[i]);
+            }
+            return Long.toString(num, 36).toUpperCase();
+        } catch (Exception e) {
+            return "ERROR";
+        }
+    }
+
+    private String decodeIp(String code) {
+        if (code.equalsIgnoreCase("LOCAL"))
+            return "127.0.0.1";
+        try {
+            long num = Long.parseLong(code, 36);
+            return ((num >> 24) & 0xFF) + "." +
+                    ((num >> 16) & 0xFF) + "." +
+                    ((num >> 8) & 0xFF) + "." +
+                    (num & 0xFF);
+        } catch (Exception e) {
+            return code;
+        }
     }
 
     private void startGame(NetworkMessage msg) {
@@ -399,7 +470,8 @@ public class MultiplayerScreen {
 
         int imgIdx = Math.abs(player.colorHex.hashCode()) % DOUGH_FILES.length;
         ImageView icon = new ImageView();
-        if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError()) icon.setImage(doughImages[imgIdx]);
+        if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError())
+            icon.setImage(doughImages[imgIdx]);
         icon.setFitWidth(44);
         icon.setFitHeight(44);
         icon.setPreserveRatio(true);
@@ -418,10 +490,9 @@ public class MultiplayerScreen {
         slot.setAlignment(Pos.CENTER_LEFT);
         slot.setPrefSize(300, 68);
         slot.setStyle(
-            "-fx-background-color: rgba(20,15,18,0.55); -fx-background-radius: 8;" +
-            "-fx-border-color: #444444; -fx-border-width: 1; -fx-border-radius: 8;" +
-            "-fx-border-style: dashed;"
-        );
+                "-fx-background-color: rgba(20,15,18,0.55); -fx-background-radius: 8;" +
+                        "-fx-border-color: #444444; -fx-border-width: 1; -fx-border-radius: 8;" +
+                        "-fx-border-style: dashed;");
 
         HBox content = new HBox(14);
         content.setAlignment(Pos.CENTER_LEFT);
@@ -429,7 +500,8 @@ public class MultiplayerScreen {
 
         int imgIdx = index % DOUGH_FILES.length;
         ImageView icon = new ImageView();
-        if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError()) icon.setImage(doughImages[imgIdx]);
+        if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError())
+            icon.setImage(doughImages[imgIdx]);
         icon.setFitWidth(44);
         icon.setFitHeight(44);
         icon.setPreserveRatio(true);
@@ -449,9 +521,8 @@ public class MultiplayerScreen {
         slot.setAlignment(Pos.CENTER_LEFT);
         slot.setPrefSize(300, 68);
         slot.setStyle(
-            "-fx-background-color: rgba(61,40,46,0.75); -fx-background-radius: 8;" +
-            "-fx-border-color: " + GOLD + "; -fx-border-width: 2; -fx-border-radius: 8;"
-        );
+                "-fx-background-color: rgba(61,40,46,0.75); -fx-background-radius: 8;" +
+                        "-fx-border-color: " + GOLD + "; -fx-border-width: 2; -fx-border-radius: 8;");
         return slot;
     }
 
@@ -522,9 +593,8 @@ public class MultiplayerScreen {
     private void setStatus(String text, String hexColor) {
         statusLabel.setText(text);
         statusLabel.setStyle(
-            "-fx-text-fill: " + hexColor + "; -fx-font-size: 24px; " +
-            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';"
-        );
+                "-fx-text-fill: " + hexColor + "; -fx-font-size: 24px; " +
+                        "-fx-font-family: '" + UIUtils.MAIN_FONT + "';");
     }
 
     private void cleanup() {
