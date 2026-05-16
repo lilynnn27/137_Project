@@ -26,7 +26,6 @@ public class Timer {
         }
     }  
 
-
     public void start(){
         timeline.play();
     }

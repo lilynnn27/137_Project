@@ -10,19 +10,19 @@ import java.util.Set;
 
 import app.Main;
 import app.game_hud.StatOverlay;
-import app.utils.UIUtils;
+import app.game_logic.BiggerSizePowerup;
 import app.game_logic.FreezeHazard;
 import app.game_logic.PickupEntity;
 import app.game_logic.ReverseControlsHazard;
 import app.game_logic.SlowingHazard;
-import app.game_logic.TerritoryManager;
 import app.game_logic.SpeedPowerup;
-import app.game_logic.BiggerSizePowerup;
-import app.game_logic.TransparentTrailPowerup;
+import app.game_logic.TerritoryManager;
 import app.game_logic.Timer;
 import app.game_logic.TrailManager;
+import app.game_logic.TransparentTrailPowerup;
 import app.network.GameClient;
 import app.network.NetworkMessage.PlayerState;
+import app.utils.UIUtils;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -54,60 +54,40 @@ public class GamePlayScreen {
 
     private final TrailManager trailManager = new TrailManager();
     private final TerritoryManager territoryManager = new TerritoryManager();
-    /**
-     * Other players' trail managers — populated by multiplayer. Empty in
-     * single-player.
-     */
     private final List<TrailManager> enemyTrailManagers = new ArrayList<>();
 
-    /** Canvas for territory fill + trail (redrawn every frame). */
     private final Canvas overlayCanvas;
     private final GraphicsContext overlayGc;
 
-    /** Player visual */
     private ImageView playerSprite;
 
     // ---- Multiplayer networking ----
-    /** Non-null when running in multiplayer mode. */
     private GameClient gameClient;
-    /** This client's player ID (assigned by server). -1 in single-player. */
     private int myPlayerId = -1;
-    /**
-     * Canvases for remote players' territory + trails.
-     * One entry per remote player, keyed by their playerId.
-     */
-    private final java.util.Map<Integer, Canvas>       remoteOverlays  = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, ImageView>    remoteSprites   = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, TrailManager> remoteTrails    = new java.util.LinkedHashMap<>();
+    
+    private final java.util.Map<Integer, Canvas> remoteOverlays = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, ImageView> remoteSprites = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, TrailManager> remoteTrails = new java.util.LinkedHashMap<>();
     private final java.util.Map<Integer, TerritoryManager> remoteTerritories = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, Color>        remoteColors    = new java.util.LinkedHashMap<>();
-    /** How many frames to skip between network sends (send every Nth frame). */
+    private final java.util.Map<Integer, Color> remoteColors = new java.util.LinkedHashMap<>();
     private static final int NET_SEND_INTERVAL = 3;
     private int netFrameCounter = 0;
 
-    /** Player world-space position */
     private double playerX = 0;
     private double playerY = 0;
     private final double SPEED = 2.5;
 
-    /**
-     * Multiplier applied to SPEED. Modified by hazards (e.g. SlowingHazard = 0.70).
-     */
     private double speedMultiplier = 1.0;
-    /**
-     * Nanosecond timestamp when the current speed effect should expire (0 = no
-     * effect).
-     */
     private long speedEffectEndNanos = 0;
 
-    /** Current movement direction (unit vector) */
+    // Current movement direction 
     Set<KeyCode> pressedKeys = new HashSet<>();
     private double dirX = 1;
     private double dirY = 0;
     private double lastDirX = 1;
     private double lastDirY = 0;
 
-    // ** for smoothness when using keyboard keys */
+    // Keyboard keys smoothness
     private double targetDirX = 1;
     private double targetDirY = 0;
     private final double TURN_SMOOTHNESS = 0.15;
@@ -118,16 +98,10 @@ public class GamePlayScreen {
 
     private InputMode activeInputMode = InputMode.KEYBOARD;
 
-    /** World radius */
     private final double WORLD_RADIUS = 1500;
 
-    /** Player dough color — derived from the randomly chosen dough sprite. */
     private final Color PLAYER_COLOR;
 
-    /**
-     * Maps each dough filename (without extension) to its representative color.
-     * Colors are picked to closely match the actual sprite tones.
-     */
     private static final Map<String, Color> DOUGH_COLORS = Map.of(
             "orange", Color.web("#FF7043"),
             "red", Color.web("#E53935"),
@@ -138,7 +112,6 @@ public class GamePlayScreen {
             "purple", Color.web("#8E24AA"),
             "indigo", Color.web("#3949AB"));
 
-    /** HUD labels */
     private final Label territoryLabel;
     private final ProgressBar powerUpBar;
     private Label timerLabel;
@@ -146,34 +119,25 @@ public class GamePlayScreen {
     private String myPlayerName = "You";
     private StatOverlay statOverlay;
     private final Map<Integer, Double> remoteTerritoryPercents = new java.util.LinkedHashMap<>();
-    private final Map<Integer, String> remotePlayerNames       = new java.util.LinkedHashMap<>();
+    private final Map<Integer, String> remotePlayerNames = new java.util.LinkedHashMap<>();
 
-    private VBox    chatBox;
-    private VBox    chatMessageArea;
+    private VBox chatBox;
+    private VBox chatMessageArea;
     private boolean chatExpanded = false;
 
-    /** Hex ownership counters (used by GameOverModal). */
     private int ownedHexCount = 0;
     private final int totalHexCount = 1000;
 
-    /** True while the player is outside their territory (trail is active). */
+    //tack active trail
     private boolean outsideTerritory = false;
 
-    /** True once any death condition has fired — prevents double-invocation. */
     private boolean isDead = false;
 
-    /**
-     * Active pickups on the map (hazards + power-ups). Despawned entries are
-     * removed each frame.
-     */
     private final List<PickupEntity> pickups = new ArrayList<>();
-    // Background and player sprite images — held as fields so D3D textures are never GC'd
     private Image bgImage;
     private Image playerSpriteImage;
 
-    /** Sprite for H1 Rolling Pin hazard; null if the file is missing. */
     private Image rollingPinSprite;
-    /** Nanosecond timestamp of the last Rolling Pin spawn (0 = none yet). */
     private long lastHazardSpawnNanos = 0;
     /** How often to spawn a new Rolling Pin hazard (8 seconds). */
     private static final long HAZARD_SPAWN_INTERVAL_NANOS = 8_000_000_000L;
@@ -229,20 +193,7 @@ public class GamePlayScreen {
     // Constructor / Setup
     // -----------------------------------------------------------------------
 
-    /**
-     * Multiplayer constructor — spawns at server-assigned position with a
-     * fixed color, and sends position updates to the server each frame.
-     *
-     * @param mainApp    The main application.
-     * @param client     Already-connected {@link GameClient}.
-     * @param spawnX     World-space X assigned by the server.
-     * @param spawnY     World-space Y assigned by the server.
-     * @param colorHex   CSS color string (e.g. "#FF7043").
-     * @param myPlayerId This client's ID.
-     */
-    public GamePlayScreen(Main mainApp, GameClient client,
-                          double spawnX, double spawnY,
-                          String colorHex, int myPlayerId) {
+    public GamePlayScreen(Main mainApp, GameClient client, double spawnX, double spawnY, String colorHex, int myPlayerId) {
         this(mainApp); // Runs the full single-player setup first
 
         // Override defaults set by the single-player constructor
@@ -273,7 +224,7 @@ public class GamePlayScreen {
         }));
     }
 
-    /** Single-player constructor (original). */
+    //Single Player
     public GamePlayScreen(Main mainApp) {
         this.mainApp = mainApp;
 
@@ -414,9 +365,6 @@ public class GamePlayScreen {
         chatPlaceholder.setFont(Font.font(UIUtils.MAIN_FONT, 13));
         chatPlaceholder.setStyle("-fx-text-fill: #666666;");
         chatMessageArea.getChildren().add(chatPlaceholder);
-
-        // TODO: wire in multiplayer messages here —
-        //   add Label entries to chatMessageArea when the network layer delivers chat events
 
         ScrollPane chatScroll = new ScrollPane(chatMessageArea);
         chatScroll.setPrefWidth(256);
@@ -998,10 +946,10 @@ public class GamePlayScreen {
 
     /** Creates an ImageView for a remote player sprite using the color-matched dough image. */
     private ImageView createRemoteSprite(String colorHex) {
-        String[] names  = { "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo" };
-        String dough    = names[Math.abs(colorHex.hashCode()) % names.length];
-        File   imgFile  = new File("assets/images/PlayersDough/" + dough + ".png");
-        ImageView iv    = new ImageView();
+        String[] names = { "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo" };
+        String dough = names[Math.abs(colorHex.hashCode()) % names.length];
+        File imgFile = new File("assets/images/PlayersDough/" + dough + ".png");
+        ImageView iv = new ImageView();
         if (imgFile.exists()) {
             iv.setImage(new Image(imgFile.toURI().toString()));
         }

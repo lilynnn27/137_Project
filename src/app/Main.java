@@ -65,15 +65,6 @@ public class Main extends Application {
         screen.getRoot().requestFocus();
     }
 
-    /**
-     * Launches the multiplayer game screen for this client.
-     *
-     * @param client     The connected {@link GameClient} (already joined).
-     * @param spawnX     World-space spawn X assigned by the server.
-     * @param spawnY     World-space spawn Y assigned by the server.
-     * @param colorHex   CSS hex color assigned by the server (e.g. "#FF7043").
-     * @param myPlayerId This client's player ID.
-     */
     public void showMultiplayerGame(GameClient client,
                                     double spawnX, double spawnY,
                                     String colorHex, int myPlayerId) {

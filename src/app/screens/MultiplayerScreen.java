@@ -1,5 +1,8 @@
 package app.screens;
 
+import java.io.IOException;
+import java.util.List;
+
 import app.Main;
 import app.network.GameClient;
 import app.network.GameServer;
@@ -23,37 +26,17 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 
-import java.io.IOException;
-import java.util.List;
-
-/**
- * MultiplayerScreen — the networked lobby.
- *
- * Two modes selectable by the player:
- * HOST — starts a {@link GameServer} on this machine, then connects as
- * the first client.
- * JOIN — connects to a server already running on another machine.
- *
- * Once connected the lobby shows live player slots populated by LOBBY_UPDATE
- * messages from the server. When the server sends START_GAME, the screen
- * transitions to the multiplayer gameplay screen.
- */
 public class MultiplayerScreen {
-
-    // ------------------------------------------------------------------
-    // Constants
-    // ------------------------------------------------------------------
-
     private static final String[] DOUGH_FILES = {
             "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo"
     };
 
     // Warm kitchen color palette
-    private static final String CREAM  = "#f5e6c8";
-    private static final String BROWN  = "#3d282e";
+    private static final String CREAM = "#f5e6c8";
+    private static final String BROWN = "#3d282e";
     private static final String ORANGE = "#c46a2d";
-    private static final String GOLD   = "#b89664";
-    private static final String MUTED  = "#888888";
+    private static final String GOLD = "#b89664";
+    private static final String MUTED = "#888888";
 
     // Ready button states
     private static final String NORMAL_STYLE =
@@ -100,10 +83,6 @@ public class MultiplayerScreen {
         btn.setOnMouseExited(e -> btn.setStyle(BTN_NORMAL));
     }
 
-    // ------------------------------------------------------------------
-    // State
-    // ------------------------------------------------------------------
-
     private final StackPane root;
     private final VBox mainLayout;
     private final Main mainApp;
@@ -121,15 +100,10 @@ public class MultiplayerScreen {
     private boolean isReady = false;
     private boolean isConnected = false;
 
-    // Image fields — held here so they are never GC'd while the screen is displayed
     private Image bgImage;
     private Image arenaPreviewBgImage;
     private final Image[] doughImages   = new Image[DOUGH_FILES.length]; // all 8 colors
     private final Image[] previewImages = new Image[6];                  // 3 hazards + 3 powerups
-
-    // ------------------------------------------------------------------
-    // Constructor
-    // ------------------------------------------------------------------
 
     public MultiplayerScreen(Main mainApp) {
         this.mainApp = mainApp;
