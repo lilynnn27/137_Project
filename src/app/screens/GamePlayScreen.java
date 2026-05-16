@@ -352,6 +352,10 @@ public class GamePlayScreen {
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {
                     System.out.println("Timer reached zero!");
+                    // Issue 2: In multiplayer the server owns the timer and will
+                    // broadcast GAME_OVER — the client-side timer must NOT also
+                    // trigger showGameOver() or the two will conflict.
+                    if (gameClient != null) return;
                     if (!isDead) {
                         isDead = true;
                         showGameOver();
@@ -753,7 +757,38 @@ public class GamePlayScreen {
         biggerSizeEndNanos = 0;
         isTrailTransparent = false;
         transparentEndNanos = 0;
-        showGameOver();
+
+        if (gameClient != null) {
+            // Issue 1: Multiplayer — show game-over immediately for this (dead) player
+            // while others may still be playing. Build a snapshot of known results.
+            java.util.List<app.network.NetworkMessage.GameResult> snapshot = new java.util.ArrayList<>();
+
+            // Local player just died — territory is 0
+            String myHex = "#" + PLAYER_COLOR.toString().substring(2, 8).toUpperCase();
+            snapshot.add(new app.network.NetworkMessage.GameResult(
+                    myPlayerId, myPlayerName, myHex, 0.0, 0));
+
+            for (java.util.Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
+                int id     = entry.getKey();
+                Color col  = entry.getValue();
+                double pct = remoteTerritoryPercents.getOrDefault(id, 0.0);
+                String name = remotePlayerNames.getOrDefault(id, "Player " + id);
+                String hex  = "#" + col.toString().substring(2, 8).toUpperCase();
+                snapshot.add(new app.network.NetworkMessage.GameResult(id, name, hex, pct, 0));
+            }
+
+            // Sort descending by territory %, assign ranks
+            snapshot.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+            for (int i = 0; i < snapshot.size(); i++) snapshot.get(i).rank = i + 1;
+
+            // Disconnect so the server detects this player left and triggers
+            // checkLastPlayerStanding() for the remaining players.
+            gameClient.disconnect();
+
+            showMultiplayerGameOver(snapshot);
+        } else {
+            showGameOver();
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -984,19 +1019,21 @@ public class GamePlayScreen {
     }
 
     /**
-     * Shows the game-over screen with the server-provided leaderboard.
+     * Shows the game-over screen with the server-provided (or locally-built) leaderboard.
+     * Safe to call after gameClient.disconnect() has already been invoked.
      * Used in multiplayer mode instead of the single-player GameOverModal.
      */
     private void showMultiplayerGameOver(java.util.List<app.network.NetworkMessage.GameResult> results) {
         gameTimer.stop();
         gameLoop.stop();
-        if (gameClient != null) gameClient.disconnect();
+        // Disconnect only if still connected (handleDeath may have already done this)
+        if (gameClient != null && gameClient.isConnected()) gameClient.disconnect();
 
         // Determine how the game ended:
-        // If there is only 1 non-dead player entry in results AND the timer
-        // still had time left, it was a last-dough-standing finish.
-        boolean lastStanding = results.size() == 1 ||
-            (results.stream().filter(r -> r.territoryPercent > 0).count() == 1);
+        // LAST_STANDING if exactly one player has territory > 0, meaning all others
+        // have died (including the local player who just died at 0%).
+        long withTerritory = results.stream().filter(r -> r.territoryPercent > 0).count();
+        boolean lastStanding = (withTerritory <= 1);
         GameOverModal.EndReason reason = lastStanding
             ? GameOverModal.EndReason.LAST_STANDING
             : GameOverModal.EndReason.TIMER;

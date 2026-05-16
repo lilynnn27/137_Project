@@ -129,26 +129,33 @@ public class GameOverModal {
     public void show() {
         mainApp.setBackgroundBlur(true);
 
-        // Responsive: 75 % of primary stage, clamped
+        // Derive a reference width from the primary stage.
+        // We do NOT fix a rigid height — instead we let the window sizeToScene()
+        // after the content is built, so the background always covers exactly what
+        // is inside and nothing overflows.
         double sw = mainApp.getPrimaryStage().getWidth();
         double sh = mainApp.getPrimaryStage().getHeight();
-        double mw = clamp(sw * 0.75, 680, 1380);
-        double mh = clamp(sh * 0.75, 400, 820);
+        double mw = clamp(sw * 0.68, 600, 1200);
+        // mh is used only as a scaling reference for internal spacing; the window
+        // height is determined by sizeToScene() below.
+        double mh = clamp(sh * 0.75, 460, 860);
 
         // ── Background image ─────────────────────────────────────────
+        // Load synchronously (no background thread) so the image is fully
+        // decoded before it is painted. Bind to StackPane size so it always
+        // stretches to cover the full content area.
         ImageView bg = new ImageView();
-        if (bgImage != null && !bgImage.isError()) bg.setImage(bgImage);
+        Image bgSync = loadSpriteSync("assets/images/GameOverModal.png");
+        if (bgSync != null) bg.setImage(bgSync);
         bg.setPreserveRatio(false);
-        bg.fitWidthProperty().bind(window.widthProperty());
-        bg.fitHeightProperty().bind(window.heightProperty());
 
         // ── Title ────────────────────────────────────────────────────
-        double titleSz  = clamp(mw * 0.063, 34, 96);
+        double titleSz  = clamp(mw * 0.055, 28, 72);
         String titleTxt = isMultiplayer ? outcomeTitle() : "GAME OVER";
         StackPane titleStack = shadowLabel(titleTxt, titleSz);
 
         // ── Witty subtitle ───────────────────────────────────────────
-        double subtitleSz = clamp(mw * 0.028, 14, 38);
+        double subtitleSz = clamp(mw * 0.022, 12, 28);
         String subtitleTxt = wittySubtitle();
         Label subtitleLbl = new Label(subtitleTxt);
         subtitleLbl.setFont(Font.font(UIUtils.MAIN_FONT, subtitleSz));
@@ -163,7 +170,7 @@ public class GameOverModal {
             : buildSingleScore(mw);
 
         // ── Buttons ──────────────────────────────────────────────────
-        double btnSz = clamp(mw * 0.028, 16, 44);
+        double btnSz = clamp(mw * 0.024, 14, 36);
         HBox btnRow  = new HBox(clamp(mw * 0.04, 16, 60));
         btnRow.setAlignment(Pos.CENTER);
 
@@ -171,26 +178,41 @@ public class GameOverModal {
             Button retry = btn("Retry", btnSz);
             retry.setOnAction(e -> { window.close(); mainApp.showGamePlay(); });
             btnRow.getChildren().add(retry);
+        } else {
+            // Issue 4: multiplayer gets a "Play Again" button that returns to the
+            // lobby so players wait for fresh connections before the next match.
+            Button playAgain = btn("Play Again", btnSz);
+            playAgain.setOnAction(e -> { window.close(); mainApp.showMultiplayer(); });
+            btnRow.getChildren().add(playAgain);
         }
         Button menu = btn("Back to Menu", btnSz);
         menu.setOnAction(e -> { window.close(); mainApp.showLandingPage(); });
         btnRow.getChildren().add(menu);
 
         // ── Assemble ─────────────────────────────────────────────────
-        double vGap = clamp(mh * 0.025, 8, 28);
+        double vGap = clamp(mh * 0.018, 6, 20);
+        double vPad = clamp(mh * 0.04,  16, 44);
+        double hPad = clamp(mw * 0.06,  24, 80);
         VBox content = new VBox(vGap, titleStack, subtitleLbl, centre, btnRow);
         content.setAlignment(Pos.CENTER);
-        content.setPadding(new Insets(mh * 0.05, mw * 0.06, mh * 0.05, mw * 0.06));
+        content.setPadding(new Insets(vPad, hPad, vPad, hPad));
 
         StackPane root = new StackPane(bg, content);
         root.setBackground(null);
+
+        // Bind background to the StackPane so it always stretches to cover
+        // however tall the content turns out to be.
+        bg.fitWidthProperty().bind(root.widthProperty());
+        bg.fitHeightProperty().bind(root.heightProperty());
 
         Scene scene = new Scene(root);
         scene.setFill(Color.TRANSPARENT);
 
         window.setWidth(mw);
-        window.setHeight(mh);
         window.setScene(scene);
+        // sizeToScene() sets the window height to exactly fit the content,
+        // eliminating any overflow or clipping.
+        window.sizeToScene();
         window.centerOnScreen();
         window.setOnHidden(e -> mainApp.setBackgroundBlur(false));
         window.show();
@@ -205,7 +227,7 @@ public class GameOverModal {
         box.setAlignment(Pos.CENTER);
 
         // Player sprite
-        Image sprite = loadSprite(mySpritePath);
+        Image sprite = loadSpriteSync(mySpritePath);
         if (sprite != null) {
             ImageView iv = new ImageView(sprite);
             double sz = clamp(mw * 0.09, 64, 130);
@@ -282,7 +304,7 @@ public class GameOverModal {
 
         String doughPath = "assets/images/PlayersDough/" +
             COLOR_TO_DOUGH.getOrDefault(r.colorHex, "orange") + ".png";
-        Image sprite = loadSprite(doughPath);
+        Image sprite = loadSpriteSync(doughPath);
         if (sprite != null) {
             ImageView iv = new ImageView(sprite);
             iv.setFitWidth(spriteSz);
@@ -431,6 +453,24 @@ public class GameOverModal {
         if (cached != null && !cached.isError()) return cached;
         File f = new File(path);
         return f.exists() ? new Image(f.toURI().toString()) : null;
+    }
+
+    /**
+     * Issue 5: loads a sprite synchronously (backgroundLoading=false) so the
+     * image is guaranteed to be fully decoded before it is handed to an
+     * ImageView. UIUtils.ImageCache uses backgroundLoading=true which can
+     * return an in-progress image whose isError() check is unreliable.
+     */
+    private static Image loadSpriteSync(String path) {
+        if (path == null) return null;
+        File f = new File(path);
+        if (!f.exists()) return null;
+        try {
+            return new Image(f.toURI().toString()); // backgroundLoading defaults to false
+        } catch (Exception e) {
+            System.err.println("[GameOverModal] Could not load sprite: " + path);
+            return null;
+        }
     }
 
     private static double clamp(double v, double min, double max) {
