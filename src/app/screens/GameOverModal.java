@@ -29,8 +29,8 @@ import javafx.stage.StageStyle;
  * GameOverModal
  *
  * Single-player: shows GAME OVER + territory % + player sprite + Retry/Menu.
- * Multiplayer  : shows YOU WIN / YOU LOSE / IT'S A TIE! + full ranked
- *                leaderboard with each player's dough sprite and territory %.
+ * Multiplayer : shows YOU WIN / YOU LOSE / IT'S A TIE! + full ranked
+ * leaderboard with each player's dough sprite and territory %.
  *
  * Entirely responsive — modal size is derived from the primary stage so it
  * looks correct on any resolution.
@@ -38,17 +38,16 @@ import javafx.stage.StageStyle;
 public class GameOverModal {
 
     // ── Theme colours ────────────────────────────────────────────────────
-    private static final String C_GOLD       = "#b89664";
-    private static final String C_SHADOW     = "#ba2b00";
-    private static final String C_BROWN      = "#795548";
-    private static final String C_DARK       = "#5D4037";
-    private static final String C_ORANGE     = "#ff9900";
-    private static final String C_HIGHLIGHT  = "#ffe9c0";
-    private static final String C_ROW_ALT    = "rgba(255,248,238,0.55)";
+    private static final String C_GOLD = "#b89664";
+    private static final String C_SHADOW = "#ba2b00";
+    private static final String C_BROWN = "#795548";
+    private static final String C_DARK = "#5D4037";
+    private static final String C_ORANGE = "#ff9900";
+    private static final String C_HIGHLIGHT = "#ffe9c0";
+    private static final String C_ROW_ALT = "rgba(255,248,238,0.55)";
 
     /** Maps server color hex → dough image name (no extension). */
-    private static final java.util.Map<String, String> COLOR_TO_DOUGH =
-        java.util.Map.of(
+    private static final java.util.Map<String, String> COLOR_TO_DOUGH = java.util.Map.of(
             "#FF7043", "orange",
             "#1E88E5", "blue",
             "#43A047", "green",
@@ -56,27 +55,29 @@ public class GameOverModal {
             "#FDD835", "yellow",
             "#EC407A", "pink",
             "#8E24AA", "purple",
-            "#3949AB", "indigo"
-        );
+            "#3949AB", "indigo");
 
     // ── State ────────────────────────────────────────────────────────────
-    private final Main             mainApp;
-    private final Stage            window;
+    private final Main mainApp;
+    private final Stage window;
 
-    private final boolean          isMultiplayer;
+    private final boolean isMultiplayer;
 
     /**
      * How the game ended — controls the witty subtitle line.
-     * TIMER  : time ran out (single-player always uses this)
-     * LAST   : last player standing (someone died)
+     * TIMER : time ran out (single-player always uses this)
+     * LAST : last player standing (someone died)
      * NORMAL : server triggered a normal end
      */
-    public enum EndReason { TIMER, LAST_STANDING, NORMAL }
+    public enum EndReason {
+        TIMER, LAST_STANDING, NORMAL
+    }
+
     private final EndReason endReason;
-    private final List<GameResult> results;       // null in single-player
-    private final int              myPlayerId;    // -1 in single-player
-    private final double           myTerritoryPct;
-    private final String           mySpritePath;  // e.g. "assets/images/PlayersDough/orange.png"
+    private final List<GameResult> results; // null in single-player
+    private final int myPlayerId; // -1 in single-player
+    private final double myTerritoryPct;
+    private final String mySpritePath; // e.g. "assets/images/PlayersDough/orange.png"
 
     private final Image bgImage;
 
@@ -86,38 +87,41 @@ public class GameOverModal {
 
     /** Single-player constructor. */
     public GameOverModal(Main mainApp, double territoryPct, String spritePath) {
-        this.mainApp        = mainApp;
-        this.isMultiplayer  = false;
-        this.results        = null;
-        this.myPlayerId     = -1;
+        this.mainApp = mainApp;
+        this.isMultiplayer = false;
+        this.results = null;
+        this.myPlayerId = -1;
         this.myTerritoryPct = territoryPct;
-        this.mySpritePath   = spritePath;
-        this.endReason      = EndReason.TIMER;
-        this.bgImage        = UIUtils.ImageCache.get("assets/images/GameOverModal.png");
-        this.window         = buildStage();
+        this.mySpritePath = spritePath;
+        this.endReason = EndReason.TIMER;
+        this.bgImage = UIUtils.ImageCache.get("assets/images/GameOverModal.png");
+        this.window = buildStage();
     }
 
     /** Multiplayer constructor — receives ranked results list from the server. */
     public GameOverModal(Main mainApp, List<GameResult> results,
-                         int myPlayerId, String mySpritePath) {
+            int myPlayerId, String mySpritePath) {
         this(mainApp, results, myPlayerId, mySpritePath, EndReason.TIMER);
     }
 
     /** Multiplayer constructor with explicit end reason. */
     public GameOverModal(Main mainApp, List<GameResult> results,
-                         int myPlayerId, String mySpritePath, EndReason reason) {
-        this.mainApp       = mainApp;
+            int myPlayerId, String mySpritePath, EndReason reason) {
+        this.mainApp = mainApp;
         this.isMultiplayer = true;
-        this.results       = results;
-        this.myPlayerId    = myPlayerId;
-        this.mySpritePath  = mySpritePath;
-        this.endReason     = reason;
-        this.bgImage       = UIUtils.ImageCache.get("assets/images/GameOverModal.png");
-        this.window        = buildStage();
+        this.results = results;
+        this.myPlayerId = myPlayerId;
+        this.mySpritePath = mySpritePath;
+        this.endReason = reason;
+        this.bgImage = UIUtils.ImageCache.get("assets/images/GameOverModal.png");
+        this.window = buildStage();
 
         double pct = 0;
         for (GameResult r : results) {
-            if (r.playerId == myPlayerId) { pct = r.territoryPercent; break; }
+            if (r.playerId == myPlayerId) {
+                pct = r.territoryPercent;
+                break;
+            }
         }
         this.myTerritoryPct = pct;
     }
@@ -135,8 +139,9 @@ public class GameOverModal {
         // is inside and nothing overflows.
         double sw = mainApp.getPrimaryStage().getWidth();
         double mw = clamp(sw * 0.68, 600, 1200);
-        
-        // The tray image is exactly 666x375. Calculate the exact physical height it will take 
+
+        // The tray image is exactly 666x375. Calculate the exact physical height it
+        // will take
         // to ensure all vertical padding and gaps scale properly within the graphic.
         double imgRatio = 375.0 / 666.0;
         double mh = mw * imgRatio;
@@ -147,7 +152,7 @@ public class GameOverModal {
         bg.setFitWidth(mw);
 
         // ── Title ────────────────────────────────────────────────────
-        double titleSz  = clamp(mw * 0.055, 28, 72);
+        double titleSz = clamp(mw * 0.055, 28, 72);
         String titleTxt = isMultiplayer ? outcomeTitle() : "GAME OVER";
         StackPane titleStack = shadowLabel(titleTxt, titleSz);
 
@@ -160,50 +165,58 @@ public class GameOverModal {
         subtitleLbl.setWrapText(true);
         subtitleLbl.setMaxWidth(mw * 0.80);
         subtitleLbl.setAlignment(Pos.CENTER);
+        subtitleLbl.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        subtitleLbl.setMinHeight(Region.USE_PREF_SIZE);
 
         // ── Centre content ───────────────────────────────────────────
         VBox centre = isMultiplayer
-            ? buildLeaderboard(mw, mh)
-            : buildSingleScore(mw);
+                ? buildLeaderboard(mw, mh)
+                : buildSingleScore(mw);
 
         // ── Buttons ──────────────────────────────────────────────────
         double btnSz = clamp(mw * 0.024, 14, 36);
-        HBox btnRow  = new HBox(clamp(mw * 0.04, 16, 60));
+        HBox btnRow = new HBox(clamp(mw * 0.04, 16, 60));
         btnRow.setAlignment(Pos.CENTER);
 
         if (!isMultiplayer) {
             Button retry = btn("Retry", btnSz);
-            retry.setOnAction(e -> { 
-                window.close(); 
+            retry.setOnAction(e -> {
+                window.close();
                 String dough = "orange";
                 if (mySpritePath != null) {
                     dough = mySpritePath.substring(mySpritePath.lastIndexOf('/') + 1).replace(".png", "");
                 }
-                mainApp.showGamePlay(dough); 
+                mainApp.showGamePlay(dough);
             });
             btnRow.getChildren().add(retry);
         } else {
             // Issue 4: multiplayer gets a "Play Again" button that returns to the
             // lobby so players wait for fresh connections before the next match.
             Button playAgain = btn("Play Again", btnSz);
-            playAgain.setOnAction(e -> { window.close(); mainApp.showMultiplayer(); });
+            playAgain.setOnAction(e -> {
+                window.close();
+                mainApp.showMultiplayer();
+            });
             btnRow.getChildren().add(playAgain);
         }
         Button menu = btn("Back to Menu", btnSz);
-        menu.setOnAction(e -> { window.close(); mainApp.showLandingPage(); });
+        menu.setOnAction(e -> {
+            window.close();
+            mainApp.showLandingPage();
+        });
         btnRow.getChildren().add(menu);
 
         // ── Assemble ─────────────────────────────────────────────────
         double vGap = clamp(mh * 0.018, 6, 20);
-        
+
         // Pad heavily so the text stays strictly inside the "tray" graphic borders
-        double vPad = mh * 0.20; 
-        double hPad = mw * 0.18;
-        
+        double vPad = mh * 0.21;
+        double hPad = mw * 0.28;
+
         VBox content = new VBox(vGap, titleStack, subtitleLbl, centre, btnRow);
         content.setAlignment(Pos.CENTER);
         content.setPadding(new Insets(vPad, hPad, vPad, hPad));
-        
+
         // Ensure the content doesn't force the StackPane to grow larger than the image
         content.setMaxSize(mw, mh);
 
@@ -218,12 +231,12 @@ public class GameOverModal {
         window.setScene(scene);
         window.sizeToScene();
         window.show();
-        
+
         // Center the modal precisely over the main game window
         Stage mainStage = mainApp.getPrimaryStage();
         window.setX(mainStage.getX() + (mainStage.getWidth() - window.getWidth()) / 2.0);
         window.setY(mainStage.getY() + (mainStage.getHeight() - window.getHeight()) / 2.0);
-        
+
         window.setOnHidden(e -> mainApp.setBackgroundBlur(false));
     }
 
@@ -280,8 +293,8 @@ public class GameOverModal {
         row.setPadding(new Insets(6, 14, 6, 14));
         row.setMaxWidth(mw * 0.88);
         row.setStyle(
-            "-fx-background-color: " + (isMe ? C_HIGHLIGHT : C_ROW_ALT) + ";" +
-            "-fx-background-radius: 8;");
+                "-fx-background-color: " + (isMe ? C_HIGHLIGHT : C_ROW_ALT) + ";" +
+                        "-fx-background-radius: 8;");
 
         // Rank medal
         String medal = switch (r.rank) {
@@ -312,7 +325,7 @@ public class GameOverModal {
         spritePane.getChildren().add(disc);
 
         String doughPath = "assets/images/PlayersDough/" +
-            COLOR_TO_DOUGH.getOrDefault(r.colorHex, "orange") + ".png";
+                COLOR_TO_DOUGH.getOrDefault(r.colorHex, "orange") + ".png";
         Image sprite = loadSpriteSync(doughPath);
         if (sprite != null) {
             ImageView iv = new ImageView(sprite);
@@ -334,9 +347,9 @@ public class GameOverModal {
         String nameText = r.playerName + (isMe ? " (You)" : "");
         Label nameLbl = new Label(nameText);
         nameLbl.setFont(Font.font(UIUtils.MAIN_FONT,
-            clamp(isWinner ? fontSize * 1.05 : fontSize * 0.95, 12, 34)));
+                clamp(isWinner ? fontSize * 1.05 : fontSize * 0.95, 12, 34)));
         nameLbl.setStyle("-fx-text-fill: " + (isMe ? C_DARK : C_BROWN) + ";" +
-                         (isWinner ? "-fx-font-weight: bold;" : ""));
+                (isWinner ? "-fx-font-weight: bold;" : ""));
 
         // Spacer + territory %
         Region spacer = new Region();
@@ -355,34 +368,52 @@ public class GameOverModal {
     // ────────────────────────────────────────────────────────────────────
 
     private String outcomeTitle() {
-        if (!isMultiplayer) return "GAME OVER";
-        if (results == null || results.isEmpty()) return "GAME OVER";
+        if (!isMultiplayer)
+            return "GAME OVER";
+        if (results == null || results.isEmpty())
+            return "GAME OVER";
         GameResult mine = null;
-        for (GameResult r : results) if (r.playerId == myPlayerId) { mine = r; break; }
-        if (mine == null) return "GAME OVER";
+        for (GameResult r : results)
+            if (r.playerId == myPlayerId) {
+                mine = r;
+                break;
+            }
+        if (mine == null)
+            return "GAME OVER";
         long tiedFirst = results.stream().filter(r -> r.rank == 1).count();
-        if (mine.rank == 1 && tiedFirst > 1) return "IT'S A TIE!";
+        if (mine.rank == 1 && tiedFirst > 1)
+            return "IT'S A TIE!";
         return mine.rank == 1 ? "YOU WIN!" : "YOU LOSE";
     }
 
     private String wittySubtitle() {
         if (!isMultiplayer) {
-            if (myTerritoryPct >= 60) return "You kneaded that dough into submission. Bakery legend.";
-            if (myTerritoryPct >= 35) return "Time's up! Not bad for a half-baked effort.";
-            if (myTerritoryPct >= 15) return "The oven timer went off early.";
-            if (myTerritoryPct >= 5) return "The tray is mostly empty…";
+            if (myTerritoryPct >= 60)
+                return "You kneaded that dough into submission. Bakery legend.";
+            if (myTerritoryPct >= 35)
+                return "Time's up! Not bad for a half-baked effort.";
+            if (myTerritoryPct >= 15)
+                return "The oven timer went off early.";
+            if (myTerritoryPct >= 5)
+                return "The tray is mostly empty…";
             return "The dough has spoken. Maybe it's time to consider a different hobby?";
         }
 
         // Multiplayer
-        if (results == null || results.isEmpty()) return "The dough has spoken.";
+        if (results == null || results.isEmpty())
+            return "The dough has spoken.";
 
         GameResult mine = null;
-        for (GameResult r : results) if (r.playerId == myPlayerId) { mine = r; break; }
-        if (mine == null) return "The dough has spoken.";
+        for (GameResult r : results)
+            if (r.playerId == myPlayerId) {
+                mine = r;
+                break;
+            }
+        if (mine == null)
+            return "The dough has spoken.";
 
         long tiedFirst = results.stream().filter(r -> r.rank == 1).count();
-        int  total     = results.size();
+        int total = results.size();
         boolean isLast = (mine.rank == total);
 
         // ── Winner ───────────────────────────────────────────────────
@@ -394,8 +425,10 @@ public class GameOverModal {
             if (endReason == EndReason.LAST_STANDING) {
                 return "Last dough standing. The others crumbled under the pressure.";
             }
-            if (myTerritoryPct >= 55) return "Absolute doughmination. The tray bows to its new overlord.";
-            if (myTerritoryPct >= 35) return "Time's up! Our top doughminator claims the tray!";
+            if (myTerritoryPct >= 55)
+                return "Absolute doughmination. The tray bows to its new overlord.";
+            if (myTerritoryPct >= 35)
+                return "Time's up! Our top doughminator claims the tray!";
             return "A slim victory, but the tray is yours. Don't push your luck.";
         }
 
@@ -410,7 +443,8 @@ public class GameOverModal {
         if (isLast) {
             if (endReason == EndReason.LAST_STANDING)
                 return "You got flattened first. The rolling pin shows no mercy.";
-            if (myTerritoryPct < 5) return "You were basically a crumb on someone else's tray.";
+            if (myTerritoryPct < 5)
+                return "You were basically a crumb on someone else's tray.";
             return "Dead last, at least you showed up to the kitchen.";
         }
 
@@ -424,7 +458,8 @@ public class GameOverModal {
         Label shadow = new Label(text);
         shadow.setFont(Font.font(UIUtils.MAIN_FONT, size));
         shadow.setStyle("-fx-text-fill: " + C_SHADOW + ";");
-        shadow.setTranslateX(3); shadow.setTranslateY(3);
+        shadow.setTranslateX(3);
+        shadow.setTranslateY(3);
 
         Label front = new Label(text);
         front.setFont(Font.font(UIUtils.MAIN_FONT, size));
@@ -454,10 +489,13 @@ public class GameOverModal {
         return s;
     }
 
-    private Stage buildStage() { return buildStageStatic(mainApp); }
+    private Stage buildStage() {
+        return buildStageStatic(mainApp);
+    }
 
     private static Image loadSprite(String path) {
-        if (path == null) return null;
+        if (path == null)
+            return null;
         return UIUtils.ImageCache.get(path);
     }
 
@@ -468,7 +506,8 @@ public class GameOverModal {
      * return an in-progress image whose isError() check is unreliable.
      */
     private static Image loadSpriteSync(String path) {
-        if (path == null) return null;
+        if (path == null)
+            return null;
         return UIUtils.ImageCache.get(path);
     }
 
