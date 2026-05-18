@@ -117,7 +117,6 @@ public class GamePlayScreen {
             "purple", Color.web("#8E24AA"),
             "indigo", Color.web("#3949AB"));
 
-    private final Label territoryLabel;
     private final ProgressBar powerUpBar;
     private Label timerLabel;
 
@@ -139,7 +138,10 @@ public class GamePlayScreen {
     // ---- Performance: cached values to avoid per-frame recomputation ----
     /** Cached territory area fraction — only recomputed when territory changes. */
     private double cachedAreaFraction = 0.0;
-    /** Set to true when captureTerritory runs; cleared after fraction is recalculated. */
+    /**
+     * Set to true when captureTerritory runs; cleared after fraction is
+     * recalculated.
+     */
     private boolean territoryDirty = true;
     /** Throttle leaderboard sort/rebuild — only update every N frames. */
     private int leaderboardThrottleCounter = 0;
@@ -363,10 +365,6 @@ public class GamePlayScreen {
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
         // --- HUD ---
-        territoryLabel = new Label("Territory: 0.0%");
-        territoryLabel.setStyle(
-                "-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
-        root.getChildren().add(territoryLabel);
 
         powerUpBar = new ProgressBar(0);
         powerUpBar.setPrefWidth(300);
@@ -664,11 +662,10 @@ public class GamePlayScreen {
             ownedHexCount = (int) (cachedAreaFraction * totalHexCount);
             territoryDirty = false;
         }
-        territoryLabel.setText(String.format("Territory: %.1f%%", cachedAreaFraction * 100));
-        territoryLabel.setLayoutX(screenW - 230);
-        territoryLabel.setLayoutY(20);
 
-        // --- Leaderboard update: throttled to every LEADERBOARD_UPDATE_INTERVAL frames ---
+
+        // --- Leaderboard update: throttled to every LEADERBOARD_UPDATE_INTERVAL frames
+        // ---
         leaderboardThrottleCounter++;
         if (leaderboardThrottleCounter >= LEADERBOARD_UPDATE_INTERVAL) {
             leaderboardThrottleCounter = 0;
@@ -858,8 +855,9 @@ public class GamePlayScreen {
         gameTimer.stop();
         gameLoop.stop();
 
-        double territoryPct = territoryManager
-                .getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0;
+        // Use cachedAreaFraction — TerritoryManager is already cleared by handleDeath()
+        // so querying it directly would always return 0.0%.
+        double territoryPct = cachedAreaFraction * 100.0;
         String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
         GameOverModal modal = new GameOverModal(mainApp, territoryPct, spritePath);
         modal.show();
