@@ -7,14 +7,16 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundPosition;
 import javafx.scene.layout.BackgroundRepeat;
 import javafx.scene.layout.BackgroundSize;
-import javafx.scene.layout.Region;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 
 public class DevelopersPage {
@@ -23,18 +25,24 @@ public class DevelopersPage {
     private static final String ORANGE = "#ff9900";
     private static final String BROWN = "#3d282e";
 
-    private static final String BTN_SEC_NORMAL = 
+    private static final String BTN_SEC_NORMAL =
             "-fx-background-color: transparent; -fx-text-fill: " + BROWN + "; " +
             "-fx-border-color: " + BROWN + "; -fx-border-width: 2px; " +
             "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
             "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
 
-    private static final String BTN_SEC_HOVER = 
+    private static final String BTN_SEC_HOVER =
             "-fx-background-color: " + BROWN + "; -fx-text-fill: " + ORANGE + "; " +
             "-fx-border-color: " + BROWN + "; -fx-border-width: 2px; " +
             "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
             "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
 
+    // { imagePath, fullName }
+    private static final String[][] DEVELOPERS = {
+        { "assets/images/dev1.png", "Erin Reilley A. Amistoso" },
+        { "assets/images/dev2.png", "Mary Eunice S. Magnaye" },
+        { "assets/images/dev3.png", "Edgar Alan Emmanuel B. Tiamzon" }
+    };
 
     public DevelopersPage(Main mainApp) {
 
@@ -70,16 +78,26 @@ public class DevelopersPage {
 
         titleStack.getChildren().addAll(titleShadow, titleFront);
 
-        // ── Translucent content panel ──
-        Region contentPanel = new Region();
-        contentPanel.setPrefSize(1000,900 );
-        contentPanel.setMaxSize(1000, 900);
+        // ── Developer cards ──
+        VBox cardsBox = new VBox(0); // no gap; each card fills its row evenly
+        cardsBox.setAlignment(Pos.CENTER);
+        cardsBox.setPadding(new Insets(2, 8, 2, 8));
+
+        for (int i = 0; i < DEVELOPERS.length; i++) {
+            HBox card = buildDeveloperCard(DEVELOPERS[i][0], DEVELOPERS[i][1], i % 2 != 0);
+            cardsBox.getChildren().add(card);
+        }
+
+        // ── Styled panel (no scroll — cards fit naturally) ──
+        VBox contentPanel = new VBox();
+        contentPanel.setAlignment(Pos.CENTER);
+        contentPanel.getChildren().add(cardsBox);
         contentPanel.setStyle(
             "-fx-background-color: rgba(30, 15, 5, 0.60);" +
-            "-fx-background-radius: 12;" +
             "-fx-border-color: rgba(184, 150, 100, 0.45);" +
             "-fx-border-width: 1.5;" +
-            "-fx-border-radius: 12;"
+            "-fx-border-radius: 12;" +
+            "-fx-background-radius: 12;"
         );
 
         // ── Back button ──
@@ -88,7 +106,6 @@ public class DevelopersPage {
         btnBack.setOnMouseEntered(e -> btnBack.setStyle(BTN_SEC_HOVER));
         btnBack.setOnMouseExited(e -> btnBack.setStyle(BTN_SEC_NORMAL));
         btnBack.setOnAction(e -> mainApp.showLandingPage());
-
 
         // ── Outer layout ──
         VBox outerContent = new VBox(16, titleStack, contentPanel, btnBack);
@@ -104,25 +121,59 @@ public class DevelopersPage {
                 titleShadow, titleFront, contentPanel));
     }
 
+    private static HBox buildDeveloperCard(String imagePath, String name, boolean photoRight) {
+        HBox card = new HBox(24);
+        card.setPadding(new Insets(3, 32, 3, 32));
+
+        // ── Circular photo ──
+        ImageView photo = new ImageView(UIUtils.ImageCache.get(imagePath));
+        photo.setFitWidth(160);
+        photo.setFitHeight(160);
+        photo.setPreserveRatio(false);
+
+        Circle clip = new Circle(80, 80, 80);
+        photo.setClip(clip);
+
+        StackPane photoPane = new StackPane(photo);
+        photoPane.setMinSize(160, 160);
+        photoPane.setMaxSize(160, 160);
+
+        // ── Name label ──
+        Label nameLabel = new Label(name);
+        nameLabel.setStyle(
+            "-fx-text-fill: #f0d9b5;" +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+            "-fx-font-size: 30px;" +
+            "-fx-font-weight: bold;"
+        );
+
+        if (photoRight) {
+            card.setAlignment(Pos.CENTER_RIGHT);
+            card.getChildren().addAll(nameLabel, photoPane);
+        } else {
+            card.setAlignment(Pos.CENTER_LEFT);
+            card.getChildren().addAll(photoPane, nameLabel);
+        }
+
+        return card;
+    }
+
     private void applyLayout(double w, double h,
                              Label titleShadow, Label titleFront,
-                             Region contentPanel) {
+                             VBox contentPanel) {
         if (w <= 0 || h <= 0) return;
 
         double titleSz = clamp(w * 0.065, 28, 96);
-        double subSz   = clamp(w * 0.022, 14, 36);
-        double sh       = clamp(titleSz * 0.04, 2, 5);
+        double sh = clamp(titleSz * 0.04, 2, 5);
 
         titleShadow.setFont(Font.font(UIUtils.MAIN_FONT, titleSz));
         titleFront.setFont(Font.font(UIUtils.MAIN_FONT, titleSz));
         titleShadow.setTranslateX(sh);
         titleShadow.setTranslateY(sh);
-        // pageSubtitle.setFont(Font.font(UIUtils.MAIN_FONT, subSz));
 
-        double panelW = clamp(w * 0.60, 400, 1000);
-        double panelH = clamp(h * 0.50, 280, 750);
-        contentPanel.setPrefSize(panelW, panelH);
-        contentPanel.setMaxSize(panelW, panelH);
+        double panelW = clamp(w * 0.50, 340, 800);
+        contentPanel.setPrefWidth(panelW);
+        contentPanel.setMaxWidth(panelW);
     }
 
     private static double clamp(double v, double min, double max) {
