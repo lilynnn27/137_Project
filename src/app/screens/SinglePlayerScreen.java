@@ -32,19 +32,23 @@ public class SinglePlayerScreen {
     private static final String BTN_PRI_N =
         "-fx-background-color:" + ORANGE + ";-fx-text-fill:" + CREAM + ";" +
         "-fx-border-color:" + ORANGE + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;-fx-font-family:'" + UIUtils.MAIN_FONT + "';";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
     private static final String BTN_PRI_H =
         "-fx-background-color:" + CREAM + ";-fx-text-fill:" + BROWN + ";" +
         "-fx-border-color:" + ORANGE + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;-fx-font-family:'" + UIUtils.MAIN_FONT + "';";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
     private static final String BTN_SEC_N =
         "-fx-background-color:transparent;-fx-text-fill:" + CREAM + ";" +
         "-fx-border-color:" + CREAM + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;-fx-font-family:'" + UIUtils.MAIN_FONT + "';";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
     private static final String BTN_SEC_H =
         "-fx-background-color:" + CREAM + ";-fx-text-fill:" + BROWN + ";" +
         "-fx-border-color:" + CREAM + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;-fx-font-family:'" + UIUtils.MAIN_FONT + "';";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
 
     private final StackPane root;
 

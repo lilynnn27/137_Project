@@ -51,36 +51,42 @@ public class MultiplayerScreen {
     // Ready button states
     private static final String NORMAL_STYLE = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
-    private static final String NORMAL_STYLE_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN
-            + "; " +
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 26px;";
+    private static final String NORMAL_STYLE_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 26px;";
     private static final String READY_STYLE = "-fx-background-color: #4CAF50; -fx-text-fill: white; " +
             "-fx-border-color: #4CAF50; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
+            "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 26px;";
     private static final String DISABLED_STYLE = "-fx-background-color: transparent; -fx-text-fill: #555555; " +
             "-fx-border-color: #555555; -fx-border-width: 2px; " +
-            "-fx-padding: 15 40; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
+            "-fx-padding: 15 40; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 26px;";
 
     // General action buttons (Host, Join)
     private static final String BTN_NORMAL = "-fx-background-color: " + ORANGE + "; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
     private static final String BTN_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
             "-fx-border-color: " + ORANGE + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
 
     // Secondary button (Back to Menu)
     private static final String BTN_SEC_N = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
     private static final String BTN_SEC_H = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
-            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
 
     private void styleLocalButton(Button btn) {
-        btn.setFont(FONT_BUTTON);
         btn.setStyle(BTN_NORMAL);
         btn.setOnMouseEntered(e -> btn.setStyle(BTN_HOVER));
         btn.setOnMouseExited(e -> btn.setStyle(BTN_NORMAL));
@@ -212,7 +218,6 @@ public class MultiplayerScreen {
 
         // Ready button (disabled until connected)
         readyBtn = new Button("Ready");
-        readyBtn.setFont(FONT_HEADER);
         readyBtn.setStyle(DISABLED_STYLE);
         readyBtn.setDisable(true);
         readyBtn.setOnMouseEntered(e -> {
@@ -226,7 +231,6 @@ public class MultiplayerScreen {
         readyBtn.setOnAction(e -> toggleReady());
 
         Button backBtn = new Button("Back to Menu");
-        backBtn.setFont(FONT_BUTTON);
         backBtn.setStyle(BTN_SEC_N);
         backBtn.setOnMouseEntered(e -> backBtn.setStyle(BTN_SEC_H));
         backBtn.setOnMouseExited(e -> backBtn.setStyle(BTN_SEC_N));
