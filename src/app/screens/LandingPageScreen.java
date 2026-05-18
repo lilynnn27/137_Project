@@ -328,9 +328,8 @@ public class LandingPageScreen {
 
         for (Button b : new Button[]{btnRules, btnDevs, btnExit, btnSingle, btnMulti}) {
             b.setFont(Font.font(UIUtils.MAIN_FONT, btnSz));
-            // Keep all nav buttons the same computed width
-            b.setPrefWidth(clamp(w * 0.13, 120, 200));
-            b.setPrefHeight(40);
+            b.setPrefWidth(Region.USE_COMPUTED_SIZE);
+            b.setPrefHeight(Region.USE_COMPUTED_SIZE);
         }
 
         buttonRow.setSpacing(btnGap);
@@ -345,26 +344,22 @@ public class LandingPageScreen {
 
     // ── Nav button factory — transparent bg, brown text, orange on hover ──
     private static Button makeNavBtn(String text) {
-        String normal =
-            "-fx-background-color: transparent;" +
-            "-fx-text-fill: #5D4037;" +
-            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
-            "-fx-cursor: hand;" +
-            "-fx-padding: 8 16 8 16;" +
-            "-fx-border-width: 0;";
-        String hover =
-            "-fx-background-color: transparent;" +
-            "-fx-text-fill: #ff9900;" +
-            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
-            "-fx-cursor: hand;" +
-            "-fx-padding: 8 16 8 16;" +
-            "-fx-border-width: 0;";
         Button b = new Button(text);
-        b.setStyle(normal);
-        // Width is set dynamically in applyLayout; height fixed
-        b.setPrefHeight(40);
-        b.setOnMouseEntered(e -> b.setStyle(hover));
-        b.setOnMouseExited(e -> b.setStyle(normal));
+        b.setStyle("-fx-background-color: transparent; -fx-text-fill: #5D4037; -fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-cursor: hand; -fx-padding: 8 16 8 16; -fx-border-width: 0;");
+        b.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        b.setMinHeight(Region.USE_PREF_SIZE); // Prevent squishing
+        b.setOnMouseEntered(e -> b.setStyle("-fx-background-color: transparent; -fx-text-fill: #ff9900; -fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-cursor: hand; -fx-padding: 8 16 8 16; -fx-border-width: 0; -fx-font-size: " + b.getFont().getSize() + "px;"));
+        b.setOnMouseExited(e -> b.setStyle("-fx-background-color: transparent; -fx-text-fill: #5D4037; -fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-cursor: hand; -fx-padding: 8 16 8 16; -fx-border-width: 0; -fx-font-size: " + b.getFont().getSize() + "px;"));
+        
+        // When font changes via applyLayout, we need to update the style so hover doesn't break
+        b.fontProperty().addListener((obs, oldF, newF) -> {
+            if (b.isHover()) {
+                b.setStyle("-fx-background-color: transparent; -fx-text-fill: #ff9900; -fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-cursor: hand; -fx-padding: 8 16 8 16; -fx-border-width: 0; -fx-font-size: " + newF.getSize() + "px;");
+            } else {
+                b.setStyle("-fx-background-color: transparent; -fx-text-fill: #5D4037; -fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-cursor: hand; -fx-padding: 8 16 8 16; -fx-border-width: 0; -fx-font-size: " + newF.getSize() + "px;");
+            }
+        });
+        
         return b;
     }
 
