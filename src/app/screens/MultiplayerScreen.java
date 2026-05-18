@@ -14,7 +14,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -100,7 +100,7 @@ public class MultiplayerScreen {
     private GameServer gameServer;
     private Thread serverThread;
 
-    private VBox playerList;
+    private FlowPane playerList;
     private Label statusLabel;
     private Button readyBtn;
     private Button hostBtn;
@@ -181,34 +181,28 @@ public class MultiplayerScreen {
         HBox connectionRow = new HBox(16, nameField, ipField, hostBtn, joinBtn);
         connectionRow.setAlignment(Pos.CENTER);
 
-        // Player list panel
-        playerList = new VBox(8);
-        playerList.setAlignment(Pos.CENTER_LEFT);
-        playerList.setPadding(new Insets(20));
-        playerList.setStyle(
-                "-fx-background-color: rgba(15,10,12,0.82); -fx-background-radius: 12;");
-
+        // Player list panel — card grid, no scroll
         Label listHeader = new Label("Players");
         listHeader.setFont(FONT_HEADER);
         listHeader.setStyle("-fx-text-fill: " + GOLD + "; -fx-font-weight: bold;");
-        VBox.setMargin(listHeader, new Insets(0, 0, 8, 0));
-        playerList.getChildren().add(listHeader);
+
+        playerList = new FlowPane(14, 14);
+        playerList.setAlignment(Pos.CENTER);
+        playerList.setPrefWrapLength(380);
 
         for (int i = 0; i < 4; i++) {
             playerList.getChildren().add(buildEmptySlot(i));
         }
 
-        ScrollPane scrollPane = new ScrollPane(playerList);
-        scrollPane.setPrefSize(350, 350);
-        scrollPane.setMaxSize(350, 350);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setStyle(
-                "-fx-background-color: transparent; -fx-background: transparent; -fx-control-inner-background: transparent;");
+        VBox playerSection = new VBox(14, listHeader, playerList);
+        playerSection.setAlignment(Pos.CENTER);
+        playerSection.setPadding(new Insets(20));
+        playerSection.setStyle(
+                "-fx-background-color: rgba(15,10,12,0.82); -fx-background-radius: 16;");
 
         StackPane arenaPreview = buildArenaPreview();
 
-        HBox center = new HBox(40, scrollPane, arenaPreview);
+        HBox center = new HBox(40, playerSection, arenaPreview);
         center.setAlignment(Pos.CENTER);
 
         // Status label
@@ -412,7 +406,7 @@ public class MultiplayerScreen {
     // ------------------------------------------------------------------
 
     private void applyLobbyUpdate(List<LobbyPlayer> players) {
-        playerList.getChildren().subList(1, playerList.getChildren().size()).clear();
+        playerList.getChildren().clear();
 
         int slots = Math.max(GameServer.MIN_PLAYERS, players.size());
         for (int i = 0; i < slots; i++) {
@@ -471,58 +465,62 @@ public class MultiplayerScreen {
     // ------------------------------------------------------------------
 
     private StackPane buildFilledSlot(int index, LobbyPlayer player) {
-        StackPane slot = slotBase(index);
-
-        HBox content = new HBox(14);
-        content.setAlignment(Pos.CENTER_LEFT);
-        content.setPadding(new Insets(10, 18, 10, 18));
+        StackPane card = new StackPane();
+        card.setAlignment(Pos.CENTER);
+        card.setPrefSize(165, 185);
+        card.setStyle(
+                "-fx-background-color: rgba(61,40,46,0.90); -fx-background-radius: 14;" +
+                "-fx-border-color: " + GOLD + "; -fx-border-width: 3; -fx-border-radius: 14;");
 
         int imgIdx = Math.abs(player.colorHex.hashCode()) % DOUGH_FILES.length;
         ImageView icon = new ImageView();
         if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError())
             icon.setImage(doughImages[imgIdx]);
-        icon.setFitWidth(44);
-        icon.setFitHeight(44);
+        icon.setFitWidth(80);
+        icon.setFitHeight(80);
         icon.setPreserveRatio(true);
 
         Label name = new Label(player.playerName + (player.isReady ? " ✓" : ""));
-        name.setFont(FONT_BODY);
+        name.setFont(FONT_SMALL);
         name.setStyle("-fx-text-fill: " + CREAM + "; -fx-font-weight: bold;");
+        name.setWrapText(true);
+        name.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        name.setAlignment(Pos.CENTER);
+        name.setMaxWidth(150);
 
-        content.getChildren().addAll(icon, name);
-        slot.getChildren().add(content);
-        return slot;
+        VBox inner = new VBox(10, icon, name);
+        inner.setAlignment(Pos.CENTER);
+        card.getChildren().add(inner);
+        return card;
     }
 
     private StackPane buildEmptySlot(int index) {
-        StackPane slot = new StackPane();
-        slot.setAlignment(Pos.CENTER_LEFT);
-        slot.setPrefSize(300, 68);
-        slot.setStyle(
-                "-fx-background-color: rgba(20,15,18,0.55); -fx-background-radius: 8;" +
-                        "-fx-border-color: #444444; -fx-border-width: 1; -fx-border-radius: 8;" +
-                        "-fx-border-style: dashed;");
-
-        HBox content = new HBox(14);
-        content.setAlignment(Pos.CENTER_LEFT);
-        content.setPadding(new Insets(10, 18, 10, 18));
+        StackPane card = new StackPane();
+        card.setAlignment(Pos.CENTER);
+        card.setPrefSize(165, 185);
+        card.setStyle(
+                "-fx-background-color: rgba(20,15,18,0.50); -fx-background-radius: 14;" +
+                "-fx-border-color: #4a3a2a; -fx-border-width: 2; -fx-border-radius: 14;" +
+                "-fx-border-style: dashed;");
 
         int imgIdx = index % DOUGH_FILES.length;
         ImageView icon = new ImageView();
         if (doughImages[imgIdx] != null && !doughImages[imgIdx].isError())
             icon.setImage(doughImages[imgIdx]);
-        icon.setFitWidth(44);
-        icon.setFitHeight(44);
+        icon.setFitWidth(80);
+        icon.setFitHeight(80);
         icon.setPreserveRatio(true);
-        icon.setOpacity(0.3);
+        icon.setOpacity(0.20);
 
         Label waiting = new Label("Waiting...");
         waiting.setFont(FONT_SMALL);
-        waiting.setStyle("-fx-text-fill: #555555;");
+        waiting.setStyle("-fx-text-fill: #5a4a3a;");
+        waiting.setAlignment(Pos.CENTER);
 
-        content.getChildren().addAll(icon, waiting);
-        slot.getChildren().add(content);
-        return slot;
+        VBox inner = new VBox(10, icon, waiting);
+        inner.setAlignment(Pos.CENTER);
+        card.getChildren().add(inner);
+        return card;
     }
 
     private StackPane slotBase(int index) {
