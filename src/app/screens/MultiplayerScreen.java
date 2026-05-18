@@ -38,6 +38,16 @@ public class MultiplayerScreen {
     private static final String GOLD = "#b89664";
     private static final String MUTED = "#888888";
 
+    // Font constants — loaded once at class level, applied at construction, never re-set
+    private static final Font FONT_TITLE    = Font.font(UIUtils.MAIN_FONT, 72);
+    private static final Font FONT_SUBTITLE = Font.font(UIUtils.MAIN_FONT, 28);
+    private static final Font FONT_HEADER   = Font.font(UIUtils.MAIN_FONT, 26);
+    private static final Font FONT_STATUS   = Font.font(UIUtils.MAIN_FONT, 24);
+    private static final Font FONT_BODY     = Font.font(UIUtils.MAIN_FONT, 22);
+    private static final Font FONT_BUTTON   = Font.font(UIUtils.MAIN_FONT, 20);
+    private static final Font FONT_SMALL    = Font.font(UIUtils.MAIN_FONT, 18);
+    private static final Font FONT_FIELD    = Font.font(UIUtils.MAIN_FONT, 16);
+
     // Ready button states
     private static final String NORMAL_STYLE = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
@@ -70,7 +80,7 @@ public class MultiplayerScreen {
             "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: '" + UIUtils.MAIN_FONT + "';";
 
     private void styleLocalButton(Button btn) {
-        btn.setFont(Font.font(UIUtils.MAIN_FONT, 20));
+        btn.setFont(FONT_BUTTON);
         btn.setStyle(BTN_NORMAL);
         btn.setOnMouseEntered(e -> btn.setStyle(BTN_HOVER));
         btn.setOnMouseExited(e -> btn.setStyle(BTN_NORMAL));
@@ -87,6 +97,8 @@ public class MultiplayerScreen {
     private VBox playerList;
     private Label statusLabel;
     private Button readyBtn;
+    private Button hostBtn;
+    private Button joinBtn;
     private TextField nameField;
     private TextField ipField;
     private String currentServerIp = "";
@@ -124,11 +136,11 @@ public class MultiplayerScreen {
 
         // Title
         Label title = new Label("The Tray");
-        title.setFont(Font.font(UIUtils.MAIN_FONT, 72));
+        title.setFont(FONT_TITLE);
         title.setStyle("-fx-text-fill: " + GOLD + "; -fx-font-weight: bold;");
 
         Label subtitle = new Label("Lobby");
-        subtitle.setFont(Font.font(UIUtils.MAIN_FONT, 28));
+        subtitle.setFont(FONT_SUBTITLE);
         subtitle.setStyle("-fx-text-fill: " + CREAM + ";");
 
         VBox titleBox = new VBox(4, title, subtitle);
@@ -143,20 +155,20 @@ public class MultiplayerScreen {
         nameField = new TextField("Player");
         nameField.setPromptText("Your name");
         nameField.setMaxWidth(180);
-        nameField.setFont(Font.font(UIUtils.MAIN_FONT, 16));
+        nameField.setFont(FONT_FIELD);
         nameField.setStyle(fieldStyle);
 
         ipField = new TextField("");
         ipField.setPromptText("Server IP or Code");
         ipField.setMaxWidth(180);
-        ipField.setFont(Font.font(UIUtils.MAIN_FONT, 16));
+        ipField.setFont(FONT_FIELD);
         ipField.setStyle(fieldStyle);
 
-        Button hostBtn = new Button("Host Game");
+        hostBtn = new Button("Host Game");
         styleLocalButton(hostBtn);
         hostBtn.setOnAction(e -> hostGame());
 
-        Button joinBtn = new Button("Join Game");
+        joinBtn = new Button("Join Game");
         styleLocalButton(joinBtn);
         joinBtn.setOnAction(e -> joinGame());
 
@@ -171,7 +183,7 @@ public class MultiplayerScreen {
                 "-fx-background-color: rgba(15,10,12,0.82); -fx-background-radius: 12;");
 
         Label listHeader = new Label("Players");
-        listHeader.setFont(Font.font(UIUtils.MAIN_FONT, 26));
+        listHeader.setFont(FONT_HEADER);
         listHeader.setStyle("-fx-text-fill: " + GOLD + "; -fx-font-weight: bold;");
         VBox.setMargin(listHeader, new Insets(0, 0, 8, 0));
         playerList.getChildren().add(listHeader);
@@ -195,12 +207,12 @@ public class MultiplayerScreen {
 
         // Status label
         statusLabel = new Label("Host or join a lobby to begin…");
-        statusLabel.setFont(Font.font(UIUtils.MAIN_FONT, 24));
-        statusLabel.setStyle("-fx-text-fill: " + MUTED + "; -fx-font-weight: bold;");
+        statusLabel.setFont(FONT_STATUS);
+        statusLabel.setStyle("-fx-text-fill: " + MUTED + ";");
 
         // Ready button (disabled until connected)
         readyBtn = new Button("Ready");
-        readyBtn.setFont(Font.font(UIUtils.MAIN_FONT, 26));
+        readyBtn.setFont(FONT_HEADER);
         readyBtn.setStyle(DISABLED_STYLE);
         readyBtn.setDisable(true);
         readyBtn.setOnMouseEntered(e -> {
@@ -214,7 +226,7 @@ public class MultiplayerScreen {
         readyBtn.setOnAction(e -> toggleReady());
 
         Button backBtn = new Button("Back to Menu");
-        backBtn.setFont(Font.font(UIUtils.MAIN_FONT, 20));
+        backBtn.setFont(FONT_BUTTON);
         backBtn.setStyle(BTN_SEC_N);
         backBtn.setOnMouseEntered(e -> backBtn.setStyle(BTN_SEC_H));
         backBtn.setOnMouseExited(e -> backBtn.setStyle(BTN_SEC_N));
@@ -309,8 +321,10 @@ public class MultiplayerScreen {
             }
             currentServerIp = ipAddress;
             setStatus("Server started at " + currentServerIp + " — waiting for players…", "#4CAF50");
+            hostBtn.setDisable(true);
         } else {
             setStatus("Server already running — connecting…", "#FFA726");
+            hostBtn.setDisable(true);
         }
 
         new Thread(() -> {
@@ -366,6 +380,7 @@ public class MultiplayerScreen {
 
                 Platform.runLater(() -> {
                     isConnected = true;
+                    joinBtn.setDisable(true);
                     readyBtn.setDisable(false);
                     readyBtn.setStyle(NORMAL_STYLE);
                     setStatus("Connected! Click Ready when you're set.", "#4CAF50");
@@ -467,7 +482,7 @@ public class MultiplayerScreen {
         icon.setPreserveRatio(true);
 
         Label name = new Label(player.playerName + (player.isReady ? " ✓" : ""));
-        name.setFont(Font.font(UIUtils.MAIN_FONT, 22));
+        name.setFont(FONT_BODY);
         name.setStyle("-fx-text-fill: " + CREAM + "; -fx-font-weight: bold;");
 
         content.getChildren().addAll(icon, name);
@@ -498,7 +513,7 @@ public class MultiplayerScreen {
         icon.setOpacity(0.3);
 
         Label waiting = new Label("Waiting...");
-        waiting.setFont(Font.font(UIUtils.MAIN_FONT, 18));
+        waiting.setFont(FONT_SMALL);
         waiting.setStyle("-fx-text-fill: #555555;");
 
         content.getChildren().addAll(icon, waiting);
@@ -545,7 +560,7 @@ public class MultiplayerScreen {
         preview.getChildren().add(imagePane);
 
         Label previewLabel = new Label("Arena Preview");
-        previewLabel.setFont(Font.font(UIUtils.MAIN_FONT, 16));
+        previewLabel.setFont(FONT_FIELD);
         previewLabel.setStyle("-fx-text-fill: " + CREAM + "; -fx-font-weight: bold;");
         StackPane.setAlignment(previewLabel, Pos.BOTTOM_CENTER);
         StackPane.setMargin(previewLabel, new Insets(0, 0, 14, 0));
@@ -556,7 +571,7 @@ public class MultiplayerScreen {
 
     private VBox buildPreviewStrip() {
         Label header = new Label("What's in the kitchen:");
-        header.setFont(Font.font(UIUtils.MAIN_FONT, 16));
+        header.setFont(FONT_FIELD);
         header.setStyle("-fx-text-fill: " + MUTED + ";");
 
         HBox iconRow = new HBox(18);
@@ -582,9 +597,7 @@ public class MultiplayerScreen {
 
     private void setStatus(String text, String hexColor) {
         statusLabel.setText(text);
-        statusLabel.setStyle(
-                "-fx-text-fill: " + hexColor + "; -fx-font-size: 24px; " +
-                        "-fx-font-family: '" + UIUtils.MAIN_FONT + "';");
+        statusLabel.setStyle("-fx-text-fill: " + hexColor + ";");
     }
 
     private void cleanup() {

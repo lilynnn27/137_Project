@@ -23,6 +23,12 @@ public class SinglePlayerScreen {
     private static final String GOLD   = "#b89664";
     private static final String MUTED  = "#888888";
 
+    // Font constants — loaded once, applied at construction, never re-set
+    private static final Font FONT_TITLE  = Font.font(UIUtils.MAIN_FONT, 38);
+    private static final Font FONT_HEADER = Font.font(UIUtils.MAIN_FONT, 26);
+    private static final Font FONT_BUTTON = Font.font(UIUtils.MAIN_FONT, 20);
+    private static final Font FONT_SMALL  = Font.font(UIUtils.MAIN_FONT, 16);
+
     private static final String BTN_PRI_N =
         "-fx-background-color:" + ORANGE + ";-fx-text-fill:" + CREAM + ";" +
         "-fx-border-color:" + ORANGE + ";-fx-border-width:2px;" +
@@ -89,7 +95,7 @@ public class SinglePlayerScreen {
 
         // Title
         Label title = new Label("Single Player Mode");
-        title.setFont(Font.font(UIUtils.MAIN_FONT, 38));
+        title.setFont(FONT_TITLE);
         title.setStyle("-fx-text-fill:" + GOLD + ";");
 
         VBox titleBox = new VBox(6, title);
@@ -97,7 +103,7 @@ public class SinglePlayerScreen {
 
         // The Tray
         Label trayHeader = new Label("The Tray");
-        trayHeader.setFont(Font.font(UIUtils.MAIN_FONT, 26));
+        trayHeader.setFont(FONT_HEADER);
         trayHeader.setStyle("-fx-text-fill:" + GOLD + ";");
 
         HBox slotRow = new HBox();
@@ -109,14 +115,14 @@ public class SinglePlayerScreen {
 
         // Buttons
         Button btnPlay = new Button("Play Now");
-        btnPlay.setFont(Font.font(UIUtils.MAIN_FONT, 20));
+        btnPlay.setFont(FONT_BUTTON);
         btnPlay.setStyle(BTN_PRI_N);
         btnPlay.setOnMouseEntered(e -> btnPlay.setStyle(BTN_PRI_H));
         btnPlay.setOnMouseExited (e -> btnPlay.setStyle(BTN_PRI_N));
         btnPlay.setOnAction(e -> mainApp.showGamePlay(DOUGH_FILES[currentDoughIndex]));
 
         Button btnBack = new Button("Back to Menu");
-        btnBack.setFont(Font.font(UIUtils.MAIN_FONT, 20));
+        btnBack.setFont(FONT_BUTTON);
         btnBack.setStyle(BTN_SEC_N);
         btnBack.setOnMouseEntered(e -> btnBack.setStyle(BTN_SEC_H));
         btnBack.setOnMouseExited (e -> btnBack.setStyle(BTN_SEC_N));
@@ -160,7 +166,7 @@ public class SinglePlayerScreen {
         imageRow.setAlignment(Pos.CENTER);
 
         Label name = new Label(playerName);
-        name.setFont(Font.font(UIUtils.MAIN_FONT, 26));
+        name.setFont(FONT_HEADER);
         name.setStyle("-fx-text-fill:#f5e6c8;");
         VBox inner = new VBox(20, imageRow, name);
         inner.setAlignment(Pos.CENTER);
@@ -171,7 +177,7 @@ public class SinglePlayerScreen {
 
     private VBox buildPreviewStrip() {
         Label header = new Label("What's in the kitchen:");
-        header.setFont(Font.font(UIUtils.MAIN_FONT, 16));
+        header.setFont(FONT_SMALL);
         header.setStyle("-fx-text-fill:#888888;");
         HBox iconRow = new HBox(18);
         iconRow.setAlignment(Pos.CENTER);
