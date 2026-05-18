@@ -2,35 +2,34 @@ package app.screens;
 
 import app.Main;
 import app.utils.UIUtils;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundPosition;
 import javafx.scene.layout.BackgroundRepeat;
 import javafx.scene.layout.BackgroundSize;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
-/**
- * LandingPageScreen — fully responsive at every window size.
- *
- * Strategy: content (title + subtitle + buttons) is placed in a VBox that
- * is centered inside the root StackPane, then shifted downward by 18 % of
- * the window height so it lands in the cream band of the background artwork.
- * Because the shift is a *fraction* of the current height it works correctly
- * at any resolution — small window, 1080p, 1440p, or maximised.
- * Font sizes and spacing all scale with window width, clamped to readable
- * min/max values so nothing gets comically large or unreadably small.
- */
 public class LandingPageScreen {
 
     private final StackPane root;
     private Image bgImage;
+    private javafx.scene.shape.Rectangle dimOverlay;
 
     public LandingPageScreen(Main mainApp) {
 
@@ -49,82 +48,294 @@ public class LandingPageScreen {
             root.setBackground(new Background(bg));
         }
 
-        // ── Title (two stacked labels = shadow effect) ────────────────
+        // ── Title (StackPane with shadow + front) ──
         StackPane titleStack = new StackPane();
         titleStack.setAlignment(Pos.CENTER);
 
         Label titleShadow = new Label("DOUGHMINATION");
-        titleShadow.setStyle("-fx-text-fill: #5D4037;");   // dark brown shadow
+        titleShadow.setStyle("-fx-text-fill: #5D4037;");
 
         Label titleFront = new Label("DOUGHMINATION");
-        titleFront.setStyle("-fx-text-fill: #b89664;");    // gold
+        titleFront.setStyle("-fx-text-fill: #b89664;");
 
         titleStack.getChildren().addAll(titleShadow, titleFront);
 
-        // ── Subtitle ─────────────────────────────────────────────────
+        // ── Clicking title shows modal ──
+        titleStack.setOnMouseEntered(e -> titleFront.setStyle("-fx-text-fill: #ff9900;"));
+        titleStack.setOnMouseExited(e -> titleFront.setStyle("-fx-text-fill: #b89664;"));
+        titleStack.setOnMouseClicked(e -> showModeModal(mainApp));
+
+        // ── Spacebar opens modal — root must be focusable ──
+        root.setFocusTraversable(true);
+        root.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.SPACE) showModeModal(mainApp);
+        });
+
+        // ── Subtitle ──
         Label subtitle = new Label("A NETWORKED GAME PROJECT");
         subtitle.setStyle("-fx-text-fill: #795548;");
 
-        // ── Buttons ──────────────────────────────────────────────────
-        String normal = "-fx-background-color: transparent; -fx-text-fill: #5D4037; -fx-cursor: hand;";
-        String hover  = "-fx-background-color: transparent; -fx-text-fill: #ff9900; -fx-cursor: hand;";
+        // ── Nav Buttons — all equal fixed width ──
+        Button btnRules = makeNavBtn("How to Play");
+        btnRules.setOnAction(e -> mainApp.showRules());
 
-        Button btnSingle = makeBtn("Single Player", normal, hover);
-        btnSingle.setOnAction(e -> mainApp.showSinglePlayer());
+        Button btnDevs = makeNavBtn("Developers");
+        btnDevs.setOnAction(e -> mainApp.showDevelopers());
 
-        Button btnMulti = makeBtn("Multiplayer", normal, hover);
-        btnMulti.setOnAction(e -> mainApp.showMultiplayer());
-
-        Button btnExit = makeBtn("Exit Game", normal, hover);
+        Button btnExit = makeNavBtn("Exit Game");
         btnExit.setOnAction(e -> mainApp.exitGame());
 
-        HBox buttonRow = new HBox(0, btnSingle, btnMulti, btnExit);
+        // kept for modal use but not shown on main screen
+        Button btnSingle = makeNavBtn("Single Player");
+        btnSingle.setOnAction(e -> mainApp.showSinglePlayer());
+
+        Button btnMulti = makeNavBtn("Multiplayer");
+        btnMulti.setOnAction(e -> mainApp.showMultiplayer());
+
+        HBox buttonRow = new HBox(btnRules, btnDevs, btnExit);
         buttonRow.setAlignment(Pos.CENTER);
 
-        // ── Content block (StackPane centers this; translateY nudges it) ──
+        // Combine all content
         VBox content = new VBox(0, titleStack, subtitle, buttonRow);
         content.setAlignment(Pos.CENTER);
 
         root.getChildren().add(content);
 
-        // ── Responsive listener ───────────────────────────────────────
-        // Fires on every resize — including the initial layout pass when
-        // the stage goes maximised. Both width and height listeners call
-        // the same helper so either dimension change triggers a full re-layout.
+        // ── Dim overlay (hidden by default, shown when modal is open) ──
+        dimOverlay = new Rectangle();
+        dimOverlay.setFill(Color.rgb(0, 0, 0, 0.55));
+        dimOverlay.setVisible(false);
+        dimOverlay.widthProperty().bind(root.widthProperty());
+        dimOverlay.heightProperty().bind(root.heightProperty());
+        root.getChildren().add(dimOverlay);
+
         root.widthProperty().addListener((obs, o, w) ->
-            applyLayout(w.doubleValue(), root.getHeight(),
-                titleShadow, titleFront, subtitle,
-                btnSingle, btnMulti, btnExit, buttonRow, content));
+                applyLayout(w.doubleValue(), root.getHeight(),
+                        titleShadow, titleFront, subtitle,
+                        btnRules, btnDevs, btnExit, btnSingle, btnMulti,
+                        buttonRow, content));
 
         root.heightProperty().addListener((obs, o, h) ->
-            applyLayout(root.getWidth(), h.doubleValue(),
-                titleShadow, titleFront, subtitle,
-                btnSingle, btnMulti, btnExit, buttonRow, content));
+                applyLayout(root.getWidth(), h.doubleValue(),
+                        titleShadow, titleFront, subtitle,
+                        btnRules, btnDevs, btnExit, btnSingle, btnMulti,
+                        buttonRow, content));
+
+        javafx.application.Platform.runLater(() -> {
+            applyLayout(root.getWidth(), root.getHeight(),
+                    titleShadow, titleFront, subtitle,
+                    btnRules, btnDevs, btnExit, btnSingle, btnMulti,
+                    buttonRow, content);
+            root.requestFocus();
+        });
     }
 
-    // ── Layout logic ──────────────────────────────────────────────────────
+    // ── Styled modal with brown title bar, dim overlay, and large icon mode buttons ──
+    private void showModeModal(Main mainApp) {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        // TRANSPARENT (not UNDECORATED) is required to avoid white corner edges
+        dialog.initStyle(StageStyle.TRANSPARENT);
 
-    private void applyLayout(double w, double h, Label titleShadow, Label titleFront, Label subtitle, Button sp, Button mp, Button ex, HBox buttonRow, VBox content) {
+        // Show dim overlay on the main screen
+        dimOverlay.setVisible(true);
+
+        // Remove overlay when dialog closes for any reason
+        dialog.setOnHidden(e -> dimOverlay.setVisible(false));
+
+        // ── Title bar ──
+        Label titleLabel = new Label("Choose Mode");
+        titleLabel.setStyle(
+            "-fx-text-fill: #fff3e0;" +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+            "-fx-font-size: 20px;"
+        );
+
+        Button btnClose = new Button("✕");
+        btnClose.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: #ffe0b2;" +
+            "-fx-font-size: 16px;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 2 12 2 12;" +
+            "-fx-border-width: 0;"
+        );
+        btnClose.setOnMouseEntered(e -> btnClose.setStyle(
+            "-fx-background-color: rgba(160,82,45,0.6);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 16px;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 2 12 2 12;" +
+            "-fx-border-width: 0;" +
+            "-fx-background-radius: 6;"
+        ));
+        btnClose.setOnMouseExited(e -> btnClose.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: #ffe0b2;" +
+            "-fx-font-size: 16px;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 2 12 2 12;" +
+            "-fx-border-width: 0;"
+        ));
+        btnClose.setOnAction(e -> dialog.close());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+
+        HBox titleBar = new HBox(titleLabel, spacer, btnClose);
+        titleBar.setAlignment(Pos.CENTER_LEFT);
+        titleBar.setPadding(new Insets(14, 10, 14, 22));
+        titleBar.setStyle(
+            "-fx-background-color: #795548;" +
+            "-fx-background-radius: 18 18 0 0;"
+        );
+
+        // ── Soft subtitle inside modal body ──
+        Label modalSubtitle = new Label("What kind of game would you like to play?");
+        modalSubtitle.setStyle(
+            "-fx-text-fill: #a1887f;" +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+            "-fx-font-size: 14px;"
+        );
+        modalSubtitle.setPadding(new Insets(18, 0, 4, 0));
+
+        // ── Mode buttons ──
+        Button btnPractice    = makeModeBtn("🖥", "Practice Mode");
+        Button btnMultiplayer = makeModeBtn("📶", "Multiplayer");
+
+        btnPractice.setOnAction(e -> { dialog.close(); mainApp.showSinglePlayer(); });
+        btnMultiplayer.setOnAction(e -> { dialog.close(); mainApp.showMultiplayer(); });
+
+        HBox modeRow = new HBox(36, btnPractice, btnMultiplayer);
+        modeRow.setAlignment(Pos.CENTER);
+        modeRow.setPadding(new Insets(16, 48, 44, 48));
+
+        VBox dialogBody = new VBox(0, titleBar, modalSubtitle, modeRow);
+        dialogBody.setAlignment(Pos.CENTER);
+        dialogBody.setStyle(
+            "-fx-background-color: #fff8f0;" +
+            "-fx-background-radius: 18;" +
+            "-fx-border-color: #bcaaa4;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-border-radius: 18;" +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 24, 0.1, 0, 6);"
+        );
+
+        // Wrap in a transparent StackPane so the drop-shadow isn't clipped
+        StackPane wrapper = new StackPane(dialogBody);
+        wrapper.setStyle("-fx-background-color: transparent;");
+        wrapper.setPadding(new Insets(16));
+
+        Scene scene = new Scene(wrapper);
+        scene.setFill(Color.TRANSPARENT);
+        dialog.setScene(scene);
+        dialog.sizeToScene();
+
+        // ── Centre dialog over the main window ──
+        javafx.application.Platform.runLater(() -> {
+            javafx.stage.Window owner = root.getScene().getWindow();
+            dialog.setX(owner.getX() + (owner.getWidth()  - dialog.getWidth())  / 2);
+            dialog.setY(owner.getY() + (owner.getHeight() - dialog.getHeight()) / 2);
+        });
+
+        dialog.showAndWait();
+    }
+
+    /**
+     * Square card-style button with an icon on top and label below.
+     * Default: cream background, brown outline.
+     * Hovered: orange background, white text.
+     */
+    private static Button makeModeBtn(String icon, String label) {
+        String normal =
+            "-fx-background-color: #fff3e0;" +
+            "-fx-border-color: #d7ccc8;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-border-radius: 14;" +
+            "-fx-background-radius: 14;" +
+            "-fx-text-fill: #6d4c41;" +
+            "-fx-font-size: 18px;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 28 32 28 32;";
+
+        String hovered =
+            "-fx-background-color: #ff9900;" +
+            "-fx-border-color: #ff9900;" +
+            "-fx-border-width: 1.5;" +
+            "-fx-border-radius: 14;" +
+            "-fx-background-radius: 14;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 18px;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 28 32 28 32;";
+
+        Label iconLabel = new Label(icon);
+        iconLabel.setStyle("-fx-font-size: 64px;");
+
+        Label textLabel = new Label(label);
+        textLabel.setStyle(
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+            "-fx-font-size: 16px;" +
+            "-fx-text-fill: #6d4c41;"
+        );
+
+        VBox btnContent = new VBox(12, iconLabel, textLabel);
+        btnContent.setAlignment(Pos.CENTER);
+
+        Button b = new Button();
+        b.setGraphic(btnContent);
+        b.setPrefWidth(220);
+        b.setPrefHeight(220);
+        b.setStyle(normal);
+        b.setOnMouseEntered(e -> {
+            b.setStyle(hovered);
+            iconLabel.setStyle("-fx-font-size: 64px; -fx-text-fill: white;");
+            textLabel.setStyle(
+                "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+                "-fx-font-size: 16px;" +
+                "-fx-text-fill: white;"
+            );
+        });
+        b.setOnMouseExited(e -> {
+            b.setStyle(normal);
+            iconLabel.setStyle("-fx-font-size: 64px; -fx-text-fill: #6d4c41;");
+            textLabel.setStyle(
+                "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+                "-fx-font-size: 16px;" +
+                "-fx-text-fill: #6d4c41;"
+            );
+        });
+        return b;
+    }
+
+    // ── Layout logic ──
+    private void applyLayout(double w, double h,
+                             Label titleShadow, Label titleFront, Label subtitle,
+                             Button btnRules, Button btnDevs, Button btnExit,
+                             Button btnSingle, Button btnMulti,
+                             HBox buttonRow, VBox content) {
         if (w <= 0 || h <= 0) return;
 
-        // All sizes scale linearly with width, clamped to sane bounds
-        double titleSz = clamp(w * 0.072, 28, 108);
+        double titleSz    = clamp(w * 0.072, 28, 108);
         double subtitleSz = clamp(w * 0.032, 14, 52);
-        double btnSz = clamp(w * 0.030, 13, 46);
-        double btnGap = clamp(w * 0.028, 12, 52);
-        double vGap = clamp(h * 0.016, 5, 20);
+        double btnSz      = clamp(w * 0.022, 11, 36);
+        double btnGap     = clamp(w * 0.028, 12, 52);
+        double vGap       = clamp(h * 0.016, 5, 20);
 
         titleShadow.setFont(Font.font(UIUtils.MAIN_FONT, titleSz));
         titleFront.setFont(Font.font(UIUtils.MAIN_FONT, titleSz));
         subtitle.setFont(Font.font(UIUtils.MAIN_FONT, subtitleSz));
-        sp.setFont(Font.font(UIUtils.MAIN_FONT, btnSz));
-        mp.setFont(Font.font(UIUtils.MAIN_FONT, btnSz));
-        ex.setFont(Font.font(UIUtils.MAIN_FONT, btnSz));
+
+        for (Button b : new Button[]{btnRules, btnDevs, btnExit, btnSingle, btnMulti}) {
+            b.setFont(Font.font(UIUtils.MAIN_FONT, btnSz));
+            // Keep all nav buttons the same computed width
+            b.setPrefWidth(clamp(w * 0.13, 120, 200));
+            b.setPrefHeight(40);
+        }
 
         buttonRow.setSpacing(btnGap);
         content.setSpacing(vGap);
 
-        // Shadow offset is proportional to font size
         double sh = clamp(titleSz * 0.04, 2, 5);
         titleShadow.setTranslateX(sh);
         titleShadow.setTranslateY(sh);
@@ -132,11 +343,26 @@ public class LandingPageScreen {
         content.setTranslateY(h * 0.075);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────
-
-    private static Button makeBtn(String text, String normal, String hover) {
+    // ── Nav button factory — transparent bg, brown text, orange on hover ──
+    private static Button makeNavBtn(String text) {
+        String normal =
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: #5D4037;" +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 8 16 8 16;" +
+            "-fx-border-width: 0;";
+        String hover =
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: #ff9900;" +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 8 16 8 16;" +
+            "-fx-border-width: 0;";
         Button b = new Button(text);
         b.setStyle(normal);
+        // Width is set dynamically in applyLayout; height fixed
+        b.setPrefHeight(40);
         b.setOnMouseEntered(e -> b.setStyle(hover));
         b.setOnMouseExited(e -> b.setStyle(normal));
         return b;
@@ -146,5 +372,7 @@ public class LandingPageScreen {
         return Math.max(min, Math.min(max, v));
     }
 
-    public javafx.scene.Parent getRoot() { return root; }
+    public javafx.scene.Parent getRoot() {
+        return root;
+    }
 }
