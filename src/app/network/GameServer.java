@@ -194,6 +194,19 @@ public class GameServer {
         checkStartCondition();
     }
 
+    // Chat Message
+    public void onChat(ClientHandler handler, NetworkMessage msg) {
+        int id = handler.getPlayerId();
+        PlayerState state = latestStates.get(id);
+        if (state != null) {
+            msg.colorHex = state.colorHex;
+        } else {
+            msg.colorHex = "#FFFFFF";
+        }
+        System.out.println("[Chat] " + msg.playerName + ": " + msg.message);
+        broadcast(msg);
+    }
+
     //Position Update
     public void onPositionUpdate(ClientHandler handler, NetworkMessage msg) {
         if (!gameStarted) return;

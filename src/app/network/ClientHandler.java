@@ -74,6 +74,9 @@ public class ClientHandler implements Runnable {
             case PING -> {
                 send(NetworkMessage.pong());
             }
+            case CHAT -> {
+                server.onChat(this, msg);
+            }
             default -> {
                 System.out.println("[Server] Unexpected message type from client " + playerId + ": " + msg.type);
             }

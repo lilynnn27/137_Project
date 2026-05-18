@@ -127,6 +127,8 @@ public class GamePlayScreen {
     private VBox chatBox;
     private VBox chatMessageArea;
     private boolean chatExpanded = false;
+    private javafx.scene.control.ScrollPane chatScroll;
+    private javafx.scene.control.TextField chatInput;
 
     private int ownedHexCount = 0;
     private final int totalHexCount = 1000;
@@ -238,6 +240,7 @@ public class GamePlayScreen {
         // thread
         client.onGameState(states -> Platform.runLater(() -> applyRemoteStates(states)));
         client.onPlayerDied(deadId -> Platform.runLater(() -> removeRemotePlayer(deadId)));
+        client.onChat(msg -> Platform.runLater(() -> appendChatMessage(msg.playerName, msg.message, msg.colorHex)));
         client.onGameOver(results -> Platform.runLater(() -> {
             if (!isDead) {
                 isDead = true;
@@ -402,7 +405,7 @@ public class GamePlayScreen {
         chatPlaceholder.setStyle("-fx-text-fill: #666666;");
         chatMessageArea.getChildren().add(chatPlaceholder);
 
-        ScrollPane chatScroll = new ScrollPane(chatMessageArea);
+        chatScroll = new ScrollPane(chatMessageArea);
         chatScroll.setPrefWidth(256);
         chatScroll.setPrefHeight(180);
         chatScroll.setFitToWidth(true);
@@ -421,15 +424,60 @@ public class GamePlayScreen {
                         "-fx-padding: 4 12;" +
                         "-fx-cursor: hand;");
         chatToggle.setMaxWidth(Double.MAX_VALUE);
+        chatInput = new javafx.scene.control.TextField();
+        chatInput.setPromptText("Type a message...");
+        chatInput.setFont(FONT_CHAT);
+        chatInput.setStyle("-fx-background-color: rgba(255,255,255,0.9); -fx-text-fill: #333333; -fx-padding: 4 8; -fx-background-radius: 4;");
+        
+        Button chatSendBtn = new Button("Send");
+        chatSendBtn.setFont(FONT_CHAT);
+        chatSendBtn.setStyle("-fx-background-color: #f0d090; -fx-text-fill: #333333; -fx-padding: 4 8; -fx-background-radius: 4; -fx-cursor: hand;");
+        
+        Runnable sendChatAction = () -> {
+            String text = chatInput.getText().trim();
+            if (!text.isEmpty()) {
+                if (text.length() > 100) text = text.substring(0, 100);
+                if (gameClient != null) {
+                    final String msgToSend = text;
+                    new Thread(() -> gameClient.sendChat(msgToSend)).start();
+                } else {
+                    // Local echo for single player testing
+                    appendChatMessage(myPlayerName, text, PLAYER_COLOR.toString().replace("0x", "#"));
+                }
+                chatInput.clear();
+            }
+            root.requestFocus();
+        };
+        
+        chatSendBtn.setOnAction(e -> sendChatAction.run());
+        chatInput.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                sendChatAction.run();
+                e.consume();
+            }
+        });
+
+        javafx.scene.layout.HBox chatInputBox = new javafx.scene.layout.HBox(4, chatInput, chatSendBtn);
+        chatInputBox.setPadding(new Insets(4));
+        chatInputBox.setVisible(false);
+        chatInputBox.setManaged(false);
+        javafx.scene.layout.HBox.setHgrow(chatInput, javafx.scene.layout.Priority.ALWAYS);
+
         chatToggle.setOnAction(e -> {
             chatExpanded = !chatExpanded;
             chatScroll.setVisible(chatExpanded);
             chatScroll.setManaged(chatExpanded);
+            chatInputBox.setVisible(chatExpanded);
+            chatInputBox.setManaged(chatExpanded);
             chatToggle.setText(chatExpanded ? "Chat ▼" : "Chat ▲");
-            root.requestFocus(); // return focus to game after button click
+            if (chatExpanded) {
+                chatInput.requestFocus();
+            } else {
+                root.requestFocus(); // return focus to game after button click
+            }
         });
 
-        chatBox = new VBox(0, chatScroll, chatToggle);
+        chatBox = new VBox(0, chatScroll, chatInputBox, chatToggle);
         chatBox.setStyle(
                 "-fx-background-color: rgba(0,0,0,0.55);" +
                         "-fx-background-radius: 10;");
@@ -454,6 +502,8 @@ public class GamePlayScreen {
 
         // key handling
         root.setOnKeyPressed(e -> {
+            if (chatInput != null && chatInput.isFocused()) return;
+
             activeInputMode = InputMode.KEYBOARD;
             pressedKeys.add(e.getCode());
             updateDirection();
@@ -464,6 +514,8 @@ public class GamePlayScreen {
         });
 
         root.setOnKeyReleased(e -> {
+            if (chatInput != null && chatInput.isFocused()) return;
+
             pressedKeys.remove(e.getCode());
             updateDirection();
         });
@@ -1072,6 +1124,39 @@ public class GamePlayScreen {
     }
 
     /** Removes all visual elements for a player that has died or disconnected. */
+    private void appendChatMessage(String name, String text, String colorHex) {
+        if (chatMessageArea.getChildren().size() > 0 && 
+            chatMessageArea.getChildren().get(0) instanceof Label &&
+            ((Label) chatMessageArea.getChildren().get(0)).getText().equals("No messages yet")) {
+            chatMessageArea.getChildren().clear();
+        }
+
+        javafx.scene.text.Text nameText = new javafx.scene.text.Text("[" + name + "]: ");
+        nameText.setFont(FONT_CHAT);
+        try {
+            if (colorHex != null && !colorHex.startsWith("#")) colorHex = "#" + colorHex;
+            nameText.setFill(Color.web(colorHex != null ? colorHex : "#FFFFFF"));
+        } catch (Exception e) {
+            nameText.setFill(Color.WHITE);
+        }
+
+        javafx.scene.text.Text msgText = new javafx.scene.text.Text(text);
+        msgText.setFont(FONT_CHAT);
+        msgText.setFill(Color.WHITE);
+
+        javafx.scene.text.TextFlow messageFlow = new javafx.scene.text.TextFlow(nameText, msgText);
+        messageFlow.setPadding(new Insets(2, 0, 2, 0));
+
+        chatMessageArea.getChildren().add(messageFlow);
+
+        if (chatMessageArea.getChildren().size() > 50) {
+            chatMessageArea.getChildren().remove(0);
+        }
+
+        // Auto-scroll to bottom
+        Platform.runLater(() -> chatScroll.setVvalue(1.0));
+    }
+
     /**
      * Called when the server notifies us that a remote player died.
      * After removing them, if we are the only player left alive we trigger

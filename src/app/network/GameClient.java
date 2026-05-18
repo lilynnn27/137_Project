@@ -49,6 +49,9 @@ public class GameClient {
     // Called on any connection error so the UI can show a message. 
     private Consumer<String> onError;
 
+    // Called when a chat message is received.
+    private Consumer<NetworkMessage> onChat;
+
     // ------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------
@@ -89,6 +92,10 @@ public class GameClient {
 
     public GameClient onError(Consumer<String> cb) {
         this.onError = cb; return this;
+    }
+
+    public GameClient onChat(Consumer<NetworkMessage> cb) {
+        this.onChat = cb; return this;
     }
 
     // ------------------------------------------------------------------
@@ -169,6 +176,9 @@ public class GameClient {
             case PING -> {
                 send(NetworkMessage.pong());
             }
+            case CHAT -> {
+                if (onChat != null) onChat.accept(msg);
+            }
             default -> {
                 System.out.println("[Client] Unexpected message: " + msg.type);
             }
@@ -180,6 +190,10 @@ public class GameClient {
     // ------------------------------------------------------------------
     public void sendReady() {
         send(NetworkMessage.ready(myPlayerId));
+    }
+
+    public void sendChat(String message) {
+        send(NetworkMessage.chat(playerName, message));
     }
 
     public void sendPositionUpdate(double x, double y, double dirX, double dirY, double[] trailPoints, double territoryPercent) {
