@@ -20,6 +20,22 @@ import javafx.scene.text.Font;
 public class RulesPage {
     private final StackPane root;
 
+    private static final String ORANGE = "#ff9900";
+    private static final String BROWN = "#3d282e";
+
+    private static final String BTN_SEC_NORMAL = 
+            "-fx-background-color: transparent; -fx-text-fill: " + BROWN + "; " +
+            "-fx-border-color: " + BROWN + "; -fx-border-width: 2px; " +
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
+
+    private static final String BTN_SEC_HOVER = 
+            "-fx-background-color: " + BROWN + "; -fx-text-fill: " + ORANGE + "; " +
+            "-fx-border-color: " + BROWN + "; -fx-border-width: 2px; " +
+            "-fx-padding: 12 30; -fx-cursor: hand; -fx-font-weight: bold; " +
+            "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 20px;";
+
+
     public RulesPage(Main mainApp) {
 
         Image bgImage = UIUtils.ImageCache.get("assets/images/MainBackground.jpg");
@@ -56,8 +72,8 @@ public class RulesPage {
 
         // ── Translucent content panel ──
         Region contentPanel = new Region();
-        contentPanel.setPrefSize(700, 420);
-        contentPanel.setMaxSize(700, 420);
+        contentPanel.setPrefSize(1000,900 );
+        contentPanel.setMaxSize(1000, 900);
         contentPanel.setStyle(
             "-fx-background-color: rgba(30, 15, 5, 0.60);" +
             "-fx-background-radius: 12;" +
@@ -67,16 +83,12 @@ public class RulesPage {
         );
 
         // ── Back button ──
-        String normalStyle = "-fx-background-color: transparent; -fx-text-fill: #b89664;"
-                   + "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 16px; -fx-cursor: hand;";
-        String hoverStyle  = "-fx-background-color: transparent; -fx-text-fill: #ff9900;"
-                        + "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 16px; -fx-cursor: hand;";
-        Button btnBack = new Button("\u2190 Back to Menu");
-        btnBack.setFont(Font.font(UIUtils.MAIN_FONT, 16));  // keep this too as a fallback
-        btnBack.setStyle(normalStyle);
-        btnBack.setOnMouseEntered(e -> btnBack.setStyle(hoverStyle));
-        btnBack.setOnMouseExited(e -> btnBack.setStyle(normalStyle));
+        Button btnBack = new Button("Back to Menu");
+        btnBack.setStyle(BTN_SEC_NORMAL);
+        btnBack.setOnMouseEntered(e -> btnBack.setStyle(BTN_SEC_HOVER));
+        btnBack.setOnMouseExited(e -> btnBack.setStyle(BTN_SEC_NORMAL));
         btnBack.setOnAction(e -> mainApp.showLandingPage());
+
 
         // ── Outer layout ──
         VBox outerContent = new VBox(16, titleStack, contentPanel, btnBack);
@@ -107,8 +119,8 @@ public class RulesPage {
         titleShadow.setTranslateY(sh);
         // pageSubtitle.setFont(Font.font(UIUtils.MAIN_FONT, subSz));
 
-        double panelW = clamp(w * 0.60, 400, 800);
-        double panelH = clamp(h * 0.45, 280, 520);
+        double panelW = clamp(w * 0.60, 400, 1000);
+        double panelH = clamp(h * 0.50, 280, 750);
         contentPanel.setPrefSize(panelW, panelH);
         contentPanel.setMaxSize(panelW, panelH);
     }

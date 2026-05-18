@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
@@ -148,14 +149,14 @@ public class LandingPageScreen {
         titleLabel.setStyle(
             "-fx-text-fill: #fff3e0;" +
             "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
-            "-fx-font-size: 20px;"
+            "-fx-font-size: 25px;"
         );
 
         Button btnClose = new Button("✕");
         btnClose.setStyle(
             "-fx-background-color: transparent;" +
             "-fx-text-fill: #ffe0b2;" +
-            "-fx-font-size: 16px;" +
+            "-fx-font-size: 25px;" +
             "-fx-cursor: hand;" +
             "-fx-padding: 2 12 2 12;" +
             "-fx-border-width: 0;"
@@ -163,7 +164,7 @@ public class LandingPageScreen {
         btnClose.setOnMouseEntered(e -> btnClose.setStyle(
             "-fx-background-color: rgba(160,82,45,0.6);" +
             "-fx-text-fill: white;" +
-            "-fx-font-size: 16px;" +
+            "-fx-font-size: 25px;" +
             "-fx-cursor: hand;" +
             "-fx-padding: 2 12 2 12;" +
             "-fx-border-width: 0;" +
@@ -172,7 +173,7 @@ public class LandingPageScreen {
         btnClose.setOnMouseExited(e -> btnClose.setStyle(
             "-fx-background-color: transparent;" +
             "-fx-text-fill: #ffe0b2;" +
-            "-fx-font-size: 16px;" +
+            "-fx-font-size: 25px;" +
             "-fx-cursor: hand;" +
             "-fx-padding: 2 12 2 12;" +
             "-fx-border-width: 0;"
@@ -195,13 +196,13 @@ public class LandingPageScreen {
         modalSubtitle.setStyle(
             "-fx-text-fill: #a1887f;" +
             "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
-            "-fx-font-size: 14px;"
+            "-fx-font-size: 25px;"
         );
         modalSubtitle.setPadding(new Insets(18, 0, 4, 0));
 
         // ── Mode buttons ──
-        Button btnPractice    = makeModeBtn("🖥", "Practice Mode");
-        Button btnMultiplayer = makeModeBtn("📶", "Multiplayer");
+        Button btnPractice    = makeModeBtn("assets/images/single.png", "Single Player", 64);
+        Button btnMultiplayer = makeModeBtn("assets/images/multi.png",  "Multiplayer", 96);
 
         btnPractice.setOnAction(e -> { dialog.close(); mainApp.showSinglePlayer(); });
         btnMultiplayer.setOnAction(e -> { dialog.close(); mainApp.showMultiplayer(); });
@@ -241,12 +242,7 @@ public class LandingPageScreen {
         dialog.showAndWait();
     }
 
-    /**
-     * Square card-style button with an icon on top and label below.
-     * Default: cream background, brown outline.
-     * Hovered: orange background, white text.
-     */
-    private static Button makeModeBtn(String icon, String label) {
+    private static Button makeModeBtn(String imagePath, String label, double iconSize) {
         String normal =
             "-fx-background-color: #fff3e0;" +
             "-fx-border-color: #d7ccc8;" +
@@ -269,8 +265,11 @@ public class LandingPageScreen {
             "-fx-cursor: hand;" +
             "-fx-padding: 28 32 28 32;";
 
-        Label iconLabel = new Label(icon);
-        iconLabel.setStyle("-fx-font-size: 64px;");
+        Image img = UIUtils.ImageCache.get(imagePath);
+        ImageView iconView = new ImageView(img);
+        iconView.setFitWidth(iconSize);
+        iconView.setFitHeight(iconSize);
+        iconView.setPreserveRatio(true);
 
         Label textLabel = new Label(label);
         textLabel.setStyle(
@@ -279,7 +278,7 @@ public class LandingPageScreen {
             "-fx-text-fill: #6d4c41;"
         );
 
-        VBox btnContent = new VBox(12, iconLabel, textLabel);
+        VBox btnContent = new VBox(12, iconView, textLabel);
         btnContent.setAlignment(Pos.CENTER);
 
         Button b = new Button();
@@ -289,7 +288,6 @@ public class LandingPageScreen {
         b.setStyle(normal);
         b.setOnMouseEntered(e -> {
             b.setStyle(hovered);
-            iconLabel.setStyle("-fx-font-size: 64px; -fx-text-fill: white;");
             textLabel.setStyle(
                 "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
                 "-fx-font-size: 16px;" +
@@ -298,7 +296,6 @@ public class LandingPageScreen {
         });
         b.setOnMouseExited(e -> {
             b.setStyle(normal);
-            iconLabel.setStyle("-fx-font-size: 64px; -fx-text-fill: #6d4c41;");
             textLabel.setStyle(
                 "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
                 "-fx-font-size: 16px;" +
@@ -328,9 +325,16 @@ public class LandingPageScreen {
 
         for (Button b : new Button[]{btnRules, btnDevs, btnExit, btnSingle, btnMulti}) {
             b.setFont(Font.font(UIUtils.MAIN_FONT, btnSz));
-            // Keep all nav buttons the same computed width
-            b.setPrefWidth(clamp(w * 0.13, 120, 200));
-            b.setPrefHeight(40);
+
+            double bw = clamp(w * 0.13, 175, 200);
+            double bh = clamp(h * 0.06, 36, 52);
+
+            b.setMinWidth(bw);
+            b.setMaxWidth(Double.MAX_VALUE);
+
+            b.setPrefHeight(bh);
+            b.setMinHeight(bh);
+            b.setMaxHeight(bh);
         }
 
         buttonRow.setSpacing(btnGap);
@@ -343,28 +347,11 @@ public class LandingPageScreen {
         content.setTranslateY(h * 0.075);
     }
 
-    // ── Nav button factory — transparent bg, brown text, orange on hover ──
     private static Button makeNavBtn(String text) {
-        String normal =
-            "-fx-background-color: transparent;" +
-            "-fx-text-fill: #5D4037;" +
-            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
-            "-fx-cursor: hand;" +
-            "-fx-padding: 8 16 8 16;" +
-            "-fx-border-width: 0;";
-        String hover =
-            "-fx-background-color: transparent;" +
-            "-fx-text-fill: #ff9900;" +
-            "-fx-font-family: '" + UIUtils.MAIN_FONT + "';" +
-            "-fx-cursor: hand;" +
-            "-fx-padding: 8 16 8 16;" +
-            "-fx-border-width: 0;";
         Button b = new Button(text);
-        b.setStyle(normal);
-        // Width is set dynamically in applyLayout; height fixed
-        b.setPrefHeight(40);
-        b.setOnMouseEntered(e -> b.setStyle(hover));
-        b.setOnMouseExited(e -> b.setStyle(normal));
+        b.getStyleClass().add("nav-btn");
+        b.setMnemonicParsing(false);
+        b.setMinHeight(Region.USE_PREF_SIZE);
         return b;
     }
 

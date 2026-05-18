@@ -1,0 +1,26 @@
+.nav-btn {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-padding: 8 16 8 16;
+    -fx-cursor: hand;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-text-fill: #5D4037;
+}
+
+.nav-btn:hover {
+    -fx-text-fill: #ff9900;
+}
+
+.nav-btn:pressed {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 8 4 8 4;
+    -fx-text-fill: #ff9900;
+}
+
+.nav-btn:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+}
