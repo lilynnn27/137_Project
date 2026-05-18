@@ -31,7 +31,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
+
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -117,7 +117,6 @@ public class GamePlayScreen {
             "purple", Color.web("#8E24AA"),
             "indigo", Color.web("#3949AB"));
 
-    private final ProgressBar powerUpBar;
     private Label timerLabel;
 
     private String myPlayerName = "You";
@@ -365,10 +364,6 @@ public class GamePlayScreen {
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
         // --- HUD ---
-
-        powerUpBar = new ProgressBar(0);
-        powerUpBar.setPrefWidth(300);
-        root.getChildren().add(powerUpBar);
 
         // --- Leaderboard overlay ---
         statOverlay = new StatOverlay();
@@ -663,7 +658,6 @@ public class GamePlayScreen {
             territoryDirty = false;
         }
 
-
         // --- Leaderboard update: throttled to every LEADERBOARD_UPDATE_INTERVAL frames
         // ---
         leaderboardThrottleCounter++;
@@ -682,9 +676,6 @@ public class GamePlayScreen {
 
         timerLabel.setLayoutX((screenW - timerLabel.getWidth()) / 2);
         timerLabel.setLayoutY(14);
-
-        powerUpBar.setLayoutX((screenW / 2) - 150);
-        powerUpBar.setLayoutY(screenH - 50);
 
         chatBox.setLayoutX(screenW - chatBox.getPrefWidth() - 14);
         chatBox.setLayoutY(screenH - chatBox.getHeight() - 14);
