@@ -136,6 +136,18 @@ public class GamePlayScreen {
     // tack active trail
     private boolean outsideTerritory = false;
 
+    // ---- Performance: cached values to avoid per-frame recomputation ----
+    /** Cached territory area fraction — only recomputed when territory changes. */
+    private double cachedAreaFraction = 0.0;
+    /** Set to true when captureTerritory runs; cleared after fraction is recalculated. */
+    private boolean territoryDirty = true;
+    /** Throttle leaderboard sort/rebuild — only update every N frames. */
+    private int leaderboardThrottleCounter = 0;
+    private static final int LEADERBOARD_UPDATE_INTERVAL = 10;
+    /** Cached screen dimensions — avoid getWidth()/getHeight() overhead. */
+    private double cachedScreenW = 0;
+    private double cachedScreenH = 0;
+
     private boolean isDead = false;
 
     private final List<PickupEntity> pickups = new ArrayList<>();
@@ -482,6 +494,8 @@ public class GamePlayScreen {
         double screenH = root.getHeight();
         if (screenW == 0)
             return;
+        cachedScreenW = screenW;
+        cachedScreenH = screenH;
 
         // --- Expire timed effects ---
         if (speedMultiplier != 1.0 && now >= speedEffectEndNanos) {
@@ -598,6 +612,7 @@ public class GamePlayScreen {
             List<Point2D> trail = trailManager.getTrailPoints();
             territoryManager.captureTerritory(trail);
             trailManager.clear();
+            territoryDirty = true; // trigger area fraction recalculation
         }
 
         // --- Self-collision check (only while trail is active) ---
@@ -620,8 +635,13 @@ public class GamePlayScreen {
             playerSprite.setY(playerY - 50);
         }
 
-        // --- Render overlay (territory + trail) ---
-        overlayGc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
+        // --- Render overlay (territory + trail) — viewport-clipped clear ---
+        // Only clear the visible portion of the 3000x3000 canvas (huge perf win).
+        double vpX = WORLD_RADIUS + playerX - screenW / 2 - 2;
+        double vpY = WORLD_RADIUS + playerY - screenH / 2 - 2;
+        double vpW = screenW + 4;
+        double vpH = screenH + 4;
+        overlayGc.clearRect(vpX, vpY, vpW, vpH);
         overlayGc.save();
         overlayGc.beginPath();
         overlayGc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
@@ -638,23 +658,30 @@ public class GamePlayScreen {
         world.setTranslateX((screenW / 2) - playerX);
         world.setTranslateY((screenH / 2) - playerY);
 
-        // --- HUD ---
-        double areaFraction = territoryManager.getApproximateAreaFraction(Math.PI * WORLD_RADIUS * WORLD_RADIUS);
-        ownedHexCount = (int) (areaFraction * totalHexCount);
-        territoryLabel.setText(String.format("Territory: %.1f%%", areaFraction * 100));
+        // --- HUD: use cached area fraction (only recomputed after capture) ---
+        if (territoryDirty) {
+            cachedAreaFraction = territoryManager.getApproximateAreaFraction(Math.PI * WORLD_RADIUS * WORLD_RADIUS);
+            ownedHexCount = (int) (cachedAreaFraction * totalHexCount);
+            territoryDirty = false;
+        }
+        territoryLabel.setText(String.format("Territory: %.1f%%", cachedAreaFraction * 100));
         territoryLabel.setLayoutX(screenW - 230);
         territoryLabel.setLayoutY(20);
 
-        // --- Leaderboard update (every tick) ---
-        List<StatOverlay.PlayerEntry> leaderboard = new ArrayList<>();
-        leaderboard.add(new StatOverlay.PlayerEntry(myPlayerName, PLAYER_COLOR, areaFraction * 100));
-        for (Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
-            double pct = remoteTerritoryPercents.getOrDefault(entry.getKey(), 0.0);
-            String name = remotePlayerNames.getOrDefault(entry.getKey(), "Player " + entry.getKey());
-            leaderboard.add(new StatOverlay.PlayerEntry(name, entry.getValue(), pct));
+        // --- Leaderboard update: throttled to every LEADERBOARD_UPDATE_INTERVAL frames ---
+        leaderboardThrottleCounter++;
+        if (leaderboardThrottleCounter >= LEADERBOARD_UPDATE_INTERVAL) {
+            leaderboardThrottleCounter = 0;
+            List<StatOverlay.PlayerEntry> leaderboard = new ArrayList<>();
+            leaderboard.add(new StatOverlay.PlayerEntry(myPlayerName, PLAYER_COLOR, cachedAreaFraction * 100));
+            for (Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
+                double pct = remoteTerritoryPercents.getOrDefault(entry.getKey(), 0.0);
+                String name = remotePlayerNames.getOrDefault(entry.getKey(), "Player " + entry.getKey());
+                leaderboard.add(new StatOverlay.PlayerEntry(name, entry.getValue(), pct));
+            }
+            leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+            statOverlay.update(leaderboard);
         }
-        leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
-        statOverlay.update(leaderboard);
 
         timerLabel.setLayoutX((screenW - timerLabel.getWidth()) / 2);
         timerLabel.setLayoutY(14);
@@ -681,7 +708,7 @@ public class GamePlayScreen {
                         packed[i * 2 + 1] = trailPts.get(i).getY();
                     }
                 }
-                gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, areaFraction * 100);
+                gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, cachedAreaFraction * 100);
             }
         }
     }
@@ -971,8 +998,13 @@ public class GamePlayScreen {
             }
 
             // Draw remote trail from packed points
+            // Viewport-clipped clear: only wipe the pixels currently on screen.
             GraphicsContext gc = overlay.getGraphicsContext2D();
-            gc.clearRect(0, 0, overlay.getWidth(), overlay.getHeight());
+            double rvpX = WORLD_RADIUS + playerX - cachedScreenW / 2 - 2;
+            double rvpY = WORLD_RADIUS + playerY - cachedScreenH / 2 - 2;
+            double rvpW = cachedScreenW + 4;
+            double rvpH = cachedScreenH + 4;
+            gc.clearRect(rvpX, rvpY, rvpW, rvpH);
             gc.save();
             gc.beginPath();
             gc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
