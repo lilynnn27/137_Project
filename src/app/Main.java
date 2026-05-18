@@ -1,9 +1,11 @@
 package app;
 
 import app.network.GameClient;
+import app.screens.DevelopersPage;
 import app.screens.GamePlayScreen;
 import app.screens.LandingPageScreen;
 import app.screens.MultiplayerScreen;
+import app.screens.RulesPage;
 import app.screens.SinglePlayerScreen;
 import app.utils.UIUtils;
 import javafx.application.Application;
@@ -17,9 +19,11 @@ public class Main extends Application {
     private javafx.scene.Scene mainScene;
 
     // Screen instances
-    private LandingPageScreen  landingPage;
+    private LandingPageScreen landingPage;
     private SinglePlayerScreen singlePlayer;
-    private MultiplayerScreen  multiplayer;
+    private MultiplayerScreen multiplayer;
+    private DevelopersPage developersPage;
+    private RulesPage rulesPage;
 
     @Override
     public void start(Stage primaryStage) {
@@ -32,6 +36,8 @@ public class Main extends Application {
         landingPage  = new LandingPageScreen(this);
         singlePlayer = new SinglePlayerScreen(this);
         multiplayer  = new MultiplayerScreen(this);
+        developersPage = new DevelopersPage(this);
+        rulesPage = new RulesPage(this);
 
         mainScene = new javafx.scene.Scene(new javafx.scene.layout.Pane(), 1024, 768);
         window.setScene(mainScene);
@@ -65,9 +71,15 @@ public class Main extends Application {
         screen.getRoot().requestFocus();
     }
 
-    public void showMultiplayerGame(GameClient client,
-                                    double spawnX, double spawnY,
-                                    String colorHex, int myPlayerId) {
+    public void showDevelopers() {
+        mainScene.setRoot(developersPage.getRoot());
+    }
+
+    public void showRules() {
+        mainScene.setRoot(rulesPage.getRoot());
+    }
+
+    public void showMultiplayerGame(GameClient client, double spawnX, double spawnY, String colorHex, int myPlayerId) {
         GamePlayScreen screen = new GamePlayScreen(this, client, spawnX, spawnY, colorHex, myPlayerId);
         mainScene.setRoot(screen.getRoot());
         screen.getRoot().requestFocus();
