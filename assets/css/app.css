@@ -24,3 +24,34 @@
     -fx-background-color: transparent;
     -fx-background-insets: 0;
 }
+
+/* ── Scrollbar styling ── */
+.scroll-bar:vertical {
+    -fx-background-color: #2a1608;
+    -fx-background-radius: 6;
+    -fx-pref-width: 8px;
+}
+
+.scroll-bar:vertical .thumb {
+    -fx-background-color: #7a5533;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar:vertical .track {
+    -fx-background-color: #2a1608;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar:vertical .increment-button,
+.scroll-bar:vertical .decrement-button {
+    -fx-background-color: #2a1608;
+    -fx-padding: 0;
+    -fx-pref-height: 0;
+}
+
+.scroll-bar:vertical .increment-arrow,
+.scroll-bar:vertical .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-shape: " ";
+    -fx-padding: 0;
+}

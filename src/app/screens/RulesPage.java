@@ -6,13 +6,13 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundImage;
 import javafx.scene.layout.BackgroundPosition;
 import javafx.scene.layout.BackgroundRepeat;
 import javafx.scene.layout.BackgroundSize;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
@@ -70,16 +70,30 @@ public class RulesPage {
 
         titleStack.getChildren().addAll(titleShadow, titleFront);
 
-        // ── Translucent content panel ──
-        Region contentPanel = new Region();
-        contentPanel.setPrefSize(1000,900 );
-        contentPanel.setMaxSize(1000, 900);
-        contentPanel.setStyle(
+        // ── Translucent content panel 
+        ControlsCard controlsCard   = new ControlsCard();
+        CoreRulesCard coreRulesCard = new CoreRulesCard();
+        PickupsCard pickupsCard     = new PickupsCard();
+        WinCard winCard             = new WinCard();
+
+        VBox cardsBox = new VBox(12, controlsCard, coreRulesCard, pickupsCard, winCard);
+        cardsBox.setPadding(new Insets(16));
+        cardsBox.setStyle(
             "-fx-background-color: rgba(30, 15, 5, 0.60);" +
-            "-fx-background-radius: 12;" +
+            "-fx-background-radius: 12;"
+        );
+
+        ScrollPane contentPanel = new ScrollPane(cardsBox);
+        contentPanel.setFitToWidth(true);
+        contentPanel.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        contentPanel.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        contentPanel.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-background: transparent;" +
             "-fx-border-color: rgba(184, 150, 100, 0.45);" +
             "-fx-border-width: 1.5;" +
-            "-fx-border-radius: 12;"
+            "-fx-border-radius: 12;" +
+            "-fx-background-radius: 12;"
         );
 
         // ── Back button ──
@@ -102,11 +116,20 @@ public class RulesPage {
                 titleShadow, titleFront, contentPanel));
         root.heightProperty().addListener((obs, o, h) -> applyLayout(root.getWidth(), h.doubleValue(),
                 titleShadow, titleFront, contentPanel));
+    
+        contentPanel.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.getStylesheets().add(
+                    getClass().getResource("/assets/css/app.css").toExternalForm()
+                );
+            }
+        });
+    
     }
 
     private void applyLayout(double w, double h,
                              Label titleShadow, Label titleFront,
-                             Region contentPanel) {
+                             ScrollPane contentPanel) {
         if (w <= 0 || h <= 0) return;
 
         double titleSz = clamp(w * 0.065, 28, 96);
