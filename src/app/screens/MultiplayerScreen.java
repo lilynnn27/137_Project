@@ -264,30 +264,45 @@ public class MultiplayerScreen {
             try {
                 java.util.Enumeration<java.net.NetworkInterface> interfaces = java.net.NetworkInterface
                         .getNetworkInterfaces();
+                String fallbackIp = null;
                 while (interfaces.hasMoreElements()) {
                     java.net.NetworkInterface iface = interfaces.nextElement();
                     if (iface.isLoopback() || !iface.isUp() || iface.isVirtual())
                         continue;
+
+                    String dispName = iface.getDisplayName() != null ? iface.getDisplayName().toLowerCase() : "";
+                    String name = iface.getName() != null ? iface.getName().toLowerCase() : "";
+
+                    // Skip common virtual/WSL/Hyper-V interfaces that might not be caught by isVirtual()
+                    if (dispName.contains("wsl") || dispName.contains("virtual") || dispName.contains("hyper-v") ||
+                        name.contains("wsl") || name.contains("virtual") || name.contains("hyper-v")) {
+                        continue;
+                    }
+
+                    boolean isWiFi = dispName.contains("wi-fi") || dispName.contains("wireless") || dispName.contains("wlan") ||
+                                     name.contains("wi-fi") || name.contains("wireless") || name.contains("wlan");
 
                     java.util.Enumeration<java.net.InetAddress> addresses = iface.getInetAddresses();
                     while (addresses.hasMoreElements()) {
                         java.net.InetAddress addr = addresses.nextElement();
                         if (addr instanceof java.net.Inet4Address) {
                             String hostAddr = addr.getHostAddress();
-                            // Prioritize non-virtual looking interfaces if possible, but take the first we
-                            // get
-                            ipAddress = hostAddr;
-                            // If it's a typical local subnet, we can break. Otherwise we keep searching.
-                            if (hostAddr.startsWith("192.168.") || hostAddr.startsWith("10.")
-                                    || hostAddr.startsWith("172.")) {
+                            if (isWiFi) {
+                                ipAddress = hostAddr;
                                 break;
+                            }
+                            if (fallbackIp == null && (hostAddr.startsWith("192.168.") || hostAddr.startsWith("10.")
+                                    || hostAddr.startsWith("172."))) {
+                                fallbackIp = hostAddr;
                             }
                         }
                     }
-                    if (ipAddress.startsWith("192.168.") || ipAddress.startsWith("10.")
-                            || ipAddress.startsWith("172.")) {
-                        break; // Found a preferred LAN IP
+                    if (isWiFi && !ipAddress.equals("127.0.0.1")) {
+                        break; 
                     }
+                }
+                if (ipAddress.equals("127.0.0.1") && fallbackIp != null) {
+                    ipAddress = fallbackIp;
                 }
             } catch (Exception e) {
                 // fallback
