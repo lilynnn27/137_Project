@@ -7,23 +7,6 @@ import javafx.scene.paint.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manages the player's owned territory as a filled polygon.
- *
- * Territory is represented as an ordered list of 2-D vertices.
- *
- * Capture logic:
- * When the player returns to their territory after leaving a trail, the trail
- * points are MERGED with the territory boundary to form a new, larger polygon.
- * The simplest correct approach: the new polygon is the convex / concave hull
- * formed by the old territory + trail. For Splix-style gameplay we use a
- * simpler "stitch" approach: find where the trail's endpoints touch the
- * boundary and replace the boundary segment between those two touch-points
- * with the trail, choosing the side that ADDS area.
- *
- * Initial territory:
- * A small square / diamond centred on the player spawn.
- */
 public class TerritoryManager {
 
   /** The current territory polygon vertices, in order. */
@@ -48,15 +31,6 @@ public class TerritoryManager {
   // -----------------------------------------------------------------------
   // Initialisation
   // -----------------------------------------------------------------------
-
-  /**
-   * Creates the starting territory: a circle-shaped polygon centred on (cx, cy).
-   * Uses 32 vertices to closely approximate the round dough shape.
-   *
-   * @param cx     Centre X of spawn point (world coordinates)
-   * @param cy     Centre Y of spawn point
-   * @param radius Radius of the starting circle
-   */
   public void initStartingTerritory(double cx, double cy, double radius) {
     polygon.clear();
     int SIDES = 32; // enough sides to look like a smooth circle
@@ -72,11 +46,6 @@ public class TerritoryManager {
   // -----------------------------------------------------------------------
   // Territory queries
   // -----------------------------------------------------------------------
-
-  /**
-   * Returns {@code true} if the point (px, py) is inside the territory polygon.
-   * Uses the ray-casting algorithm.
-   */
   public boolean isInsideTerritory(double px, double py) {
     if (polygon.size() < 3)
       return false;
@@ -114,21 +83,6 @@ public class TerritoryManager {
   // -----------------------------------------------------------------------
   // Capture
   // -----------------------------------------------------------------------
-
-  /**
-   * Expands the territory by merging the trail into the boundary polygon.
-   * Territory is permanent — it only ever grows, never shrinks.
-   *
-   * Algorithm (Splix-style "stitch"):
-   * 1. Use the trail's first/last points to find the nearest boundary vertices
-   * (exit stitch and entry stitch).
-   * 2. Build two candidate polygons: one going each way around the boundary,
-   * with the trail appended to close the loop without self-intersection.
-   * 3. Accept the largest candidate that is ≥ the current territory area.
-   *
-   * @param trail The recorded trail points (index 0 = near exit, last = near
-   *              entry).
-   */
   public void captureTerritory(List<Point2D> trail) {
     if (polygon.size() < 3 || trail.size() < 2)
       return;
@@ -274,13 +228,7 @@ public class TerritoryManager {
 
   private double[] cachedXs = new double[0];
   private double[] cachedYs = new double[0];
-
-  /**
-   * Draws the territory as a filled polygon with a colored border.
-   *
-   * @param gc    GraphicsContext (already translated to world space)
-   * @param color The player's dough color
-   */
+  
   public void drawTerritory(GraphicsContext gc, Color color) {
     if (polygon.size() < 3)
       return;
