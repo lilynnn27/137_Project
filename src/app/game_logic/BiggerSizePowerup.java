@@ -2,12 +2,6 @@ package app.game_logic;
 
 import javafx.scene.image.Image;
 
-/**
- * P2 — Dough Bigger Size Powerup
- *
- * Increases the contacting player's trail size / coverage for 5 seconds.
- * Sprite: assets/images/powerup/Dough-Powerup.png
- */
 public class BiggerSizePowerup extends PickupEntity {
 
     /**
