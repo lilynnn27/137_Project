@@ -38,22 +38,24 @@ public class MultiplayerScreen {
     private static final String GOLD = "#b89664";
     private static final String MUTED = "#888888";
 
-    // Font constants — loaded once at class level, applied at construction, never re-set
-    private static final Font FONT_TITLE    = Font.font(UIUtils.MAIN_FONT, 72);
+    // Font constants — loaded once at class level, applied at construction, never
+    // re-set
+    private static final Font FONT_TITLE = Font.font(UIUtils.MAIN_FONT, 72);
     private static final Font FONT_SUBTITLE = Font.font(UIUtils.MAIN_FONT, 28);
-    private static final Font FONT_HEADER   = Font.font(UIUtils.MAIN_FONT, 26);
-    private static final Font FONT_STATUS   = Font.font(UIUtils.MAIN_FONT, 24);
-    private static final Font FONT_BODY     = Font.font(UIUtils.MAIN_FONT, 22);
-    private static final Font FONT_BUTTON   = Font.font(UIUtils.MAIN_FONT, 20);
-    private static final Font FONT_SMALL    = Font.font(UIUtils.MAIN_FONT, 18);
-    private static final Font FONT_FIELD    = Font.font(UIUtils.MAIN_FONT, 16);
+    private static final Font FONT_HEADER = Font.font(UIUtils.MAIN_FONT, 26);
+    private static final Font FONT_STATUS = Font.font(UIUtils.MAIN_FONT, 24);
+    private static final Font FONT_BODY = Font.font(UIUtils.MAIN_FONT, 22);
+    private static final Font FONT_BUTTON = Font.font(UIUtils.MAIN_FONT, 20);
+    private static final Font FONT_SMALL = Font.font(UIUtils.MAIN_FONT, 18);
+    private static final Font FONT_FIELD = Font.font(UIUtils.MAIN_FONT, 16);
 
     // Ready button states
     private static final String NORMAL_STYLE = "-fx-background-color: transparent; -fx-text-fill: " + CREAM + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
             "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; " +
             "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 26px;";
-    private static final String NORMAL_STYLE_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN + "; " +
+    private static final String NORMAL_STYLE_HOVER = "-fx-background-color: " + CREAM + "; -fx-text-fill: " + BROWN
+            + "; " +
             "-fx-border-color: " + CREAM + "; -fx-border-width: 2px; " +
             "-fx-padding: 15 40; -fx-cursor: hand; -fx-font-weight: bold; " +
             "-fx-font-family: '" + UIUtils.MAIN_FONT + "'; -fx-font-size: 26px;";
@@ -283,14 +285,16 @@ public class MultiplayerScreen {
                     String dispName = iface.getDisplayName() != null ? iface.getDisplayName().toLowerCase() : "";
                     String name = iface.getName() != null ? iface.getName().toLowerCase() : "";
 
-                    // Skip common virtual/WSL/Hyper-V interfaces that might not be caught by isVirtual()
+                    // Skip common virtual/WSL/Hyper-V interfaces that might not be caught by
+                    // isVirtual()
                     if (dispName.contains("wsl") || dispName.contains("virtual") || dispName.contains("hyper-v") ||
-                        name.contains("wsl") || name.contains("virtual") || name.contains("hyper-v")) {
+                            name.contains("wsl") || name.contains("virtual") || name.contains("hyper-v")) {
                         continue;
                     }
 
-                    boolean isWiFi = dispName.contains("wi-fi") || dispName.contains("wireless") || dispName.contains("wlan") ||
-                                     name.contains("wi-fi") || name.contains("wireless") || name.contains("wlan");
+                    boolean isWiFi = dispName.contains("wi-fi") || dispName.contains("wireless")
+                            || dispName.contains("wlan") ||
+                            name.contains("wi-fi") || name.contains("wireless") || name.contains("wlan");
 
                     java.util.Enumeration<java.net.InetAddress> addresses = iface.getInetAddresses();
                     while (addresses.hasMoreElements()) {
@@ -308,7 +312,7 @@ public class MultiplayerScreen {
                         }
                     }
                     if (isWiFi && !ipAddress.equals("127.0.0.1")) {
-                        break; 
+                        break;
                     }
                 }
                 if (ipAddress.equals("127.0.0.1") && fallbackIp != null) {
@@ -423,7 +427,11 @@ public class MultiplayerScreen {
             String code = encodeIp(currentServerIp);
             prefix = "Host IP: " + currentServerIp + "  |  Code: " + code + "  |  ";
         }
-        setStatus(prefix + "Players: " + players.size() + "/" + GameServer.MIN_PLAYERS
+        String playerCountStr = players.size() < GameServer.MIN_PLAYERS 
+                ? players.size() + "/" + GameServer.MIN_PLAYERS 
+                : String.valueOf(players.size());
+
+        setStatus(prefix + "Players: " + playerCountStr
                 + "  |  Ready: " + readyCount + "/" + players.size(), MUTED);
     }
 
@@ -470,7 +478,7 @@ public class MultiplayerScreen {
         card.setPrefSize(165, 185);
         card.setStyle(
                 "-fx-background-color: rgba(61,40,46,0.90); -fx-background-radius: 14;" +
-                "-fx-border-color: " + GOLD + "; -fx-border-width: 3; -fx-border-radius: 14;");
+                        "-fx-border-color: " + GOLD + "; -fx-border-width: 3; -fx-border-radius: 14;");
 
         int imgIdx = Math.abs(player.colorHex.hashCode()) % DOUGH_FILES.length;
         ImageView icon = new ImageView();
@@ -500,8 +508,8 @@ public class MultiplayerScreen {
         card.setPrefSize(165, 185);
         card.setStyle(
                 "-fx-background-color: rgba(20,15,18,0.50); -fx-background-radius: 14;" +
-                "-fx-border-color: #4a3a2a; -fx-border-width: 2; -fx-border-radius: 14;" +
-                "-fx-border-style: dashed;");
+                        "-fx-border-color: #4a3a2a; -fx-border-width: 2; -fx-border-radius: 14;" +
+                        "-fx-border-style: dashed;");
 
         int imgIdx = index % DOUGH_FILES.length;
         ImageView icon = new ImageView();
