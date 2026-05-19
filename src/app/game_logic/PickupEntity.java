@@ -10,11 +10,6 @@ import javafx.scene.image.Image;
  * spawn at position → render on canvas → collision detection → despawn on
  * contact.
  *
- * Subclasses declare their effect via getEffectDurationSeconds() and any
- * effect-specific constants (e.g. SPEED_MULTIPLIER for SlowingHazard).
- * GamePlayScreen reads those constants and applies the effect itself so each
- * hazard/powerup stays a simple data class with no back-reference to the
- * screen.
  */
 public abstract class PickupEntity {
 
@@ -65,11 +60,7 @@ public abstract class PickupEntity {
     // Rendering
     // -----------------------------------------------------------------------
 
-    /**
-     * Draws this pickup sprite on the overlay canvas.
-     * Assumes the GraphicsContext is already translated so that world (0,0)
-     * aligns with the canvas centre — same convention as territory/trail drawing.
-     */
+    /** Draws this pickup sprite on the overlay canvas. */
     public void draw(GraphicsContext gc) {
         if (!active || sprite == null)
             return;
