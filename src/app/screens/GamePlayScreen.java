@@ -31,7 +31,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
+
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -43,6 +43,11 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 
 public class GamePlayScreen {
+
+    // Font constants — loaded once, applied at construction, never re-set
+    private static final Font FONT_TIMER = Font.font(UIUtils.MAIN_FONT, 24);
+    private static final Font FONT_CHAT = Font.font(UIUtils.MAIN_FONT, 14);
+    private static final Font FONT_TINY = Font.font(UIUtils.MAIN_FONT, 13);
 
     // -----------------------------------------------------------------------
     // Fields
@@ -75,7 +80,7 @@ public class GamePlayScreen {
 
     private double playerX = 0;
     private double playerY = 0;
-    private final double SPEED = 2.5;
+    private final double SPEED = 4.5;
 
     private double speedMultiplier = 1.0;
     private long speedEffectEndNanos = 0;
@@ -112,8 +117,6 @@ public class GamePlayScreen {
             "purple", Color.web("#8E24AA"),
             "indigo", Color.web("#3949AB"));
 
-    private final Label territoryLabel;
-    private final ProgressBar powerUpBar;
     private Label timerLabel;
 
     private String myPlayerName = "You";
@@ -124,12 +127,29 @@ public class GamePlayScreen {
     private VBox chatBox;
     private VBox chatMessageArea;
     private boolean chatExpanded = false;
+    private javafx.scene.control.ScrollPane chatScroll;
+    private javafx.scene.control.TextField chatInput;
 
     private int ownedHexCount = 0;
     private final int totalHexCount = 1000;
 
     // tack active trail
     private boolean outsideTerritory = false;
+
+    // ---- Performance: cached values to avoid per-frame recomputation ----
+    /** Cached territory area fraction — only recomputed when territory changes. */
+    private double cachedAreaFraction = 0.0;
+    /**
+     * Set to true when captureTerritory runs; cleared after fraction is
+     * recalculated.
+     */
+    private boolean territoryDirty = true;
+    /** Throttle leaderboard sort/rebuild — only update every N frames. */
+    private int leaderboardThrottleCounter = 0;
+    private static final int LEADERBOARD_UPDATE_INTERVAL = 10;
+    /** Cached screen dimensions — avoid getWidth()/getHeight() overhead. */
+    private double cachedScreenW = 0;
+    private double cachedScreenH = 0;
 
     private boolean isDead = false;
 
@@ -220,6 +240,7 @@ public class GamePlayScreen {
         // thread
         client.onGameState(states -> Platform.runLater(() -> applyRemoteStates(states)));
         client.onPlayerDied(deadId -> Platform.runLater(() -> removeRemotePlayer(deadId)));
+        client.onChat(msg -> Platform.runLater(() -> appendChatMessage(msg.playerName, msg.message, msg.colorHex)));
         client.onGameOver(results -> Platform.runLater(() -> {
             if (!isDead) {
                 isDead = true;
@@ -346,14 +367,6 @@ public class GamePlayScreen {
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
         // --- HUD ---
-        territoryLabel = new Label("Territory: 0.0%");
-        territoryLabel.setStyle(
-                "-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
-        root.getChildren().add(territoryLabel);
-
-        powerUpBar = new ProgressBar(0);
-        powerUpBar.setPrefWidth(300);
-        root.getChildren().add(powerUpBar);
 
         // --- Leaderboard overlay ---
         statOverlay = new StatOverlay();
@@ -361,7 +374,7 @@ public class GamePlayScreen {
 
         // --- Timer HUD (from develop branch) ---
         timerLabel = new Label("Time: 00:00");
-        timerLabel.setFont(Font.font(UIUtils.MAIN_FONT, 24));
+        timerLabel.setFont(FONT_TIMER);
         timerLabel.setStyle("-fx-text-fill: white; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
         root.getChildren().add(timerLabel);
 
@@ -378,7 +391,7 @@ public class GamePlayScreen {
                         return;
                     if (!isDead) {
                         isDead = true;
-                        double pct = Math.max(0.2, territoryManager.getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0);
+                        double pct = Math.max(0.2, cachedAreaFraction * 100.0);
                         showGameOver(pct);
                     }
                 });
@@ -389,11 +402,11 @@ public class GamePlayScreen {
         chatMessageArea.setPadding(new Insets(6, 8, 6, 8));
 
         Label chatPlaceholder = new Label("No messages yet");
-        chatPlaceholder.setFont(Font.font(UIUtils.MAIN_FONT, 13));
+        chatPlaceholder.setFont(FONT_TINY);
         chatPlaceholder.setStyle("-fx-text-fill: #666666;");
         chatMessageArea.getChildren().add(chatPlaceholder);
 
-        ScrollPane chatScroll = new ScrollPane(chatMessageArea);
+        chatScroll = new ScrollPane(chatMessageArea);
         chatScroll.setPrefWidth(256);
         chatScroll.setPrefHeight(180);
         chatScroll.setFitToWidth(true);
@@ -404,7 +417,7 @@ public class GamePlayScreen {
         chatScroll.setManaged(false);
 
         Button chatToggle = new Button("Chat ▲");
-        chatToggle.setFont(Font.font(UIUtils.MAIN_FONT, 14));
+        chatToggle.setFont(FONT_CHAT);
         chatToggle.setStyle(
                 "-fx-background-color: rgba(0,0,0,0.65);" +
                         "-fx-text-fill: #f0d090;" +
@@ -412,15 +425,60 @@ public class GamePlayScreen {
                         "-fx-padding: 4 12;" +
                         "-fx-cursor: hand;");
         chatToggle.setMaxWidth(Double.MAX_VALUE);
+        chatInput = new javafx.scene.control.TextField();
+        chatInput.setPromptText("Type a message...");
+        chatInput.setFont(FONT_CHAT);
+        chatInput.setStyle("-fx-background-color: rgba(255,255,255,0.9); -fx-text-fill: #333333; -fx-padding: 4 8; -fx-background-radius: 4;");
+        
+        Button chatSendBtn = new Button("Send");
+        chatSendBtn.setFont(FONT_CHAT);
+        chatSendBtn.setStyle("-fx-background-color: #f0d090; -fx-text-fill: #333333; -fx-padding: 4 8; -fx-background-radius: 4; -fx-cursor: hand;");
+        
+        Runnable sendChatAction = () -> {
+            String text = chatInput.getText().trim();
+            if (!text.isEmpty()) {
+                if (text.length() > 100) text = text.substring(0, 100);
+                if (gameClient != null) {
+                    final String msgToSend = text;
+                    new Thread(() -> gameClient.sendChat(msgToSend)).start();
+                } else {
+                    // Local echo for single player testing
+                    appendChatMessage(myPlayerName, text, PLAYER_COLOR.toString().replace("0x", "#"));
+                }
+                chatInput.clear();
+            }
+            root.requestFocus();
+        };
+        
+        chatSendBtn.setOnAction(e -> sendChatAction.run());
+        chatInput.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                sendChatAction.run();
+                e.consume();
+            }
+        });
+
+        javafx.scene.layout.HBox chatInputBox = new javafx.scene.layout.HBox(4, chatInput, chatSendBtn);
+        chatInputBox.setPadding(new Insets(4));
+        chatInputBox.setVisible(false);
+        chatInputBox.setManaged(false);
+        javafx.scene.layout.HBox.setHgrow(chatInput, javafx.scene.layout.Priority.ALWAYS);
+
         chatToggle.setOnAction(e -> {
             chatExpanded = !chatExpanded;
             chatScroll.setVisible(chatExpanded);
             chatScroll.setManaged(chatExpanded);
+            chatInputBox.setVisible(chatExpanded);
+            chatInputBox.setManaged(chatExpanded);
             chatToggle.setText(chatExpanded ? "Chat ▼" : "Chat ▲");
-            root.requestFocus(); // return focus to game after button click
+            if (chatExpanded) {
+                chatInput.requestFocus();
+            } else {
+                root.requestFocus(); // return focus to game after button click
+            }
         });
 
-        chatBox = new VBox(0, chatScroll, chatToggle);
+        chatBox = new VBox(0, chatScroll, chatInputBox, chatToggle);
         chatBox.setStyle(
                 "-fx-background-color: rgba(0,0,0,0.55);" +
                         "-fx-background-radius: 10;");
@@ -445,6 +503,8 @@ public class GamePlayScreen {
 
         // key handling
         root.setOnKeyPressed(e -> {
+            if (chatInput != null && chatInput.isFocused()) return;
+
             activeInputMode = InputMode.KEYBOARD;
             pressedKeys.add(e.getCode());
             updateDirection();
@@ -455,6 +515,8 @@ public class GamePlayScreen {
         });
 
         root.setOnKeyReleased(e -> {
+            if (chatInput != null && chatInput.isFocused()) return;
+
             pressedKeys.remove(e.getCode());
             updateDirection();
         });
@@ -478,6 +540,8 @@ public class GamePlayScreen {
         double screenH = root.getHeight();
         if (screenW == 0)
             return;
+        cachedScreenW = screenW;
+        cachedScreenH = screenH;
 
         // --- Expire timed effects ---
         if (speedMultiplier != 1.0 && now >= speedEffectEndNanos) {
@@ -594,6 +658,7 @@ public class GamePlayScreen {
             List<Point2D> trail = trailManager.getTrailPoints();
             territoryManager.captureTerritory(trail);
             trailManager.clear();
+            territoryDirty = true; // trigger area fraction recalculation
         }
 
         // --- Self-collision check (only while trail is active) ---
@@ -616,8 +681,13 @@ public class GamePlayScreen {
             playerSprite.setY(playerY - 50);
         }
 
-        // --- Render overlay (territory + trail) ---
-        overlayGc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
+        // --- Render overlay (territory + trail) — viewport-clipped clear ---
+        // Only clear the visible portion of the 3000x3000 canvas (huge perf win).
+        double vpX = WORLD_RADIUS + playerX - screenW / 2 - 2;
+        double vpY = WORLD_RADIUS + playerY - screenH / 2 - 2;
+        double vpW = screenW + 4;
+        double vpH = screenH + 4;
+        overlayGc.clearRect(vpX, vpY, vpW, vpH);
         overlayGc.save();
         overlayGc.beginPath();
         overlayGc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
@@ -634,29 +704,31 @@ public class GamePlayScreen {
         world.setTranslateX((screenW / 2) - playerX);
         world.setTranslateY((screenH / 2) - playerY);
 
-        // --- HUD ---
-        double areaFraction = territoryManager.getApproximateAreaFraction(Math.PI * WORLD_RADIUS * WORLD_RADIUS);
-        ownedHexCount = (int) (areaFraction * totalHexCount);
-        territoryLabel.setText(String.format("Territory: %.1f%%", areaFraction * 100));
-        territoryLabel.setLayoutX(screenW - 230);
-        territoryLabel.setLayoutY(20);
-
-        // --- Leaderboard update (every tick) ---
-        List<StatOverlay.PlayerEntry> leaderboard = new ArrayList<>();
-        leaderboard.add(new StatOverlay.PlayerEntry(myPlayerName, PLAYER_COLOR, areaFraction * 100));
-        for (Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
-            double pct = remoteTerritoryPercents.getOrDefault(entry.getKey(), 0.0);
-            String name = remotePlayerNames.getOrDefault(entry.getKey(), "Player " + entry.getKey());
-            leaderboard.add(new StatOverlay.PlayerEntry(name, entry.getValue(), pct));
+        // --- HUD: use cached area fraction (only recomputed after capture) ---
+        if (territoryDirty) {
+            cachedAreaFraction = territoryManager.getApproximateAreaFraction(Math.PI * WORLD_RADIUS * WORLD_RADIUS);
+            ownedHexCount = (int) (cachedAreaFraction * totalHexCount);
+            territoryDirty = false;
         }
-        leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
-        statOverlay.update(leaderboard);
+
+        // --- Leaderboard update: throttled to every LEADERBOARD_UPDATE_INTERVAL frames
+        // ---
+        leaderboardThrottleCounter++;
+        if (leaderboardThrottleCounter >= LEADERBOARD_UPDATE_INTERVAL) {
+            leaderboardThrottleCounter = 0;
+            List<StatOverlay.PlayerEntry> leaderboard = new ArrayList<>();
+            leaderboard.add(new StatOverlay.PlayerEntry(myPlayerName, PLAYER_COLOR, cachedAreaFraction * 100));
+            for (Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
+                double pct = remoteTerritoryPercents.getOrDefault(entry.getKey(), 0.0);
+                String name = remotePlayerNames.getOrDefault(entry.getKey(), "Player " + entry.getKey());
+                leaderboard.add(new StatOverlay.PlayerEntry(name, entry.getValue(), pct));
+            }
+            leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+            statOverlay.update(leaderboard);
+        }
 
         timerLabel.setLayoutX((screenW - timerLabel.getWidth()) / 2);
         timerLabel.setLayoutY(14);
-
-        powerUpBar.setLayoutX((screenW / 2) - 150);
-        powerUpBar.setLayoutY(screenH - 50);
 
         chatBox.setLayoutX(screenW - chatBox.getPrefWidth() - 14);
         chatBox.setLayoutY(screenH - chatBox.getHeight() - 14);
@@ -677,7 +749,7 @@ public class GamePlayScreen {
                         packed[i * 2 + 1] = trailPts.get(i).getY();
                     }
                 }
-                gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, areaFraction * 100);
+                gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, cachedAreaFraction * 100);
             }
         }
     }
@@ -782,7 +854,7 @@ public class GamePlayScreen {
         if (isDead)
             return;
             
-        double finalTerritoryPct = Math.max(0.2, territoryManager.getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0);
+        double finalTerritoryPct = Math.max(0.2, cachedAreaFraction * 100.0);
         
         isDead = true;
         trailManager.clear();
@@ -838,6 +910,7 @@ public class GamePlayScreen {
     private void showGameOver(double finalTerritoryPct) {
         gameTimer.stop();
         gameLoop.stop();
+
 
         String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
         GameOverModal modal = new GameOverModal(mainApp, finalTerritoryPct, spritePath);
@@ -977,8 +1050,13 @@ public class GamePlayScreen {
             }
 
             // Draw remote trail from packed points
+            // Viewport-clipped clear: only wipe the pixels currently on screen.
             GraphicsContext gc = overlay.getGraphicsContext2D();
-            gc.clearRect(0, 0, overlay.getWidth(), overlay.getHeight());
+            double rvpX = WORLD_RADIUS + playerX - cachedScreenW / 2 - 2;
+            double rvpY = WORLD_RADIUS + playerY - cachedScreenH / 2 - 2;
+            double rvpW = cachedScreenW + 4;
+            double rvpH = cachedScreenH + 4;
+            gc.clearRect(rvpX, rvpY, rvpW, rvpH);
             gc.save();
             gc.beginPath();
             gc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
@@ -1057,6 +1135,39 @@ public class GamePlayScreen {
     }
 
     /** Removes all visual elements for a player that has died or disconnected. */
+    private void appendChatMessage(String name, String text, String colorHex) {
+        if (chatMessageArea.getChildren().size() > 0 && 
+            chatMessageArea.getChildren().get(0) instanceof Label &&
+            ((Label) chatMessageArea.getChildren().get(0)).getText().equals("No messages yet")) {
+            chatMessageArea.getChildren().clear();
+        }
+
+        javafx.scene.text.Text nameText = new javafx.scene.text.Text("[" + name + "]: ");
+        nameText.setFont(FONT_CHAT);
+        try {
+            if (colorHex != null && !colorHex.startsWith("#")) colorHex = "#" + colorHex;
+            nameText.setFill(Color.web(colorHex != null ? colorHex : "#FFFFFF"));
+        } catch (Exception e) {
+            nameText.setFill(Color.WHITE);
+        }
+
+        javafx.scene.text.Text msgText = new javafx.scene.text.Text(text);
+        msgText.setFont(FONT_CHAT);
+        msgText.setFill(Color.WHITE);
+
+        javafx.scene.text.TextFlow messageFlow = new javafx.scene.text.TextFlow(nameText, msgText);
+        messageFlow.setPadding(new Insets(2, 0, 2, 0));
+
+        chatMessageArea.getChildren().add(messageFlow);
+
+        if (chatMessageArea.getChildren().size() > 50) {
+            chatMessageArea.getChildren().remove(0);
+        }
+
+        // Auto-scroll to bottom
+        Platform.runLater(() -> chatScroll.setVvalue(1.0));
+    }
+
     /**
      * Called when the server notifies us that a remote player died.
      * After removing them, if we are the only player left alive we trigger

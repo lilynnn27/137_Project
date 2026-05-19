@@ -18,7 +18,8 @@ public class NetworkMessage implements Serializable {
         GAME_OVER, // Server → Client: game over message with final results
         PING, // Client → Server: heartbeat ping to keep connection alive
         PONG, // Server → Client: response to PING
-        REJECTED // Server → Client: connection rejected 
+        REJECTED, // Server → Client: connection rejected 
+        CHAT // Client ↔ Server: chat messages
     }
 
     public static class PlayerState implements Serializable {
@@ -196,6 +197,14 @@ public class NetworkMessage implements Serializable {
         NetworkMessage m = new NetworkMessage();
         m.type = Type.REJECTED;
         m.message = text;
+        return m;
+    }
+
+    public static NetworkMessage chat(String playerName, String message) {
+        NetworkMessage m = new NetworkMessage();
+        m.type = Type.CHAT;
+        m.playerName = playerName;
+        m.message = message;
         return m;
     }
 }

@@ -325,16 +325,8 @@ public class LandingPageScreen {
 
         for (Button b : new Button[]{btnRules, btnDevs, btnExit, btnSingle, btnMulti}) {
             b.setFont(Font.font(UIUtils.MAIN_FONT, btnSz));
-
-            double bw = clamp(w * 0.13, 175, 200);
-            double bh = clamp(h * 0.06, 36, 52);
-
-            b.setMinWidth(bw);
-            b.setMaxWidth(Double.MAX_VALUE);
-
-            b.setPrefHeight(bh);
-            b.setMinHeight(bh);
-            b.setMaxHeight(bh);
+            b.setPrefWidth(Region.USE_COMPUTED_SIZE);
+            b.setPrefHeight(Region.USE_COMPUTED_SIZE);
         }
 
         buttonRow.setSpacing(btnGap);
@@ -351,7 +343,8 @@ public class LandingPageScreen {
         Button b = new Button(text);
         b.getStyleClass().add("nav-btn");
         b.setMnemonicParsing(false);
-        b.setMinHeight(Region.USE_PREF_SIZE);
+        b.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        b.setMinHeight(Region.USE_PREF_SIZE); // Prevent squishing
         return b;
     }
 

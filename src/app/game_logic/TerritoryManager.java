@@ -29,6 +29,22 @@ public class TerritoryManager {
   /** The current territory polygon vertices, in order. */
   private List<Point2D> polygon = new ArrayList<>();
 
+  // ---- Bounding-box cache for fast point-rejection ----
+  private double bbMinX = 0, bbMaxX = 0, bbMinY = 0, bbMaxY = 0;
+  private boolean bbDirty = true;
+
+  private void rebuildBoundingBox() {
+    bbMinX = Double.MAX_VALUE; bbMaxX = -Double.MAX_VALUE;
+    bbMinY = Double.MAX_VALUE; bbMaxY = -Double.MAX_VALUE;
+    for (Point2D p : polygon) {
+      if (p.getX() < bbMinX) bbMinX = p.getX();
+      if (p.getX() > bbMaxX) bbMaxX = p.getX();
+      if (p.getY() < bbMinY) bbMinY = p.getY();
+      if (p.getY() > bbMaxY) bbMaxY = p.getY();
+    }
+    bbDirty = false;
+  }
+
   // -----------------------------------------------------------------------
   // Initialisation
   // -----------------------------------------------------------------------
@@ -50,6 +66,7 @@ public class TerritoryManager {
           cx + radius * Math.cos(angle),
           cy + radius * Math.sin(angle)));
     }
+    bbDirty = true;
   }
 
   // -----------------------------------------------------------------------
@@ -62,6 +79,11 @@ public class TerritoryManager {
    */
   public boolean isInsideTerritory(double px, double py) {
     if (polygon.size() < 3)
+      return false;
+
+    // Fast bounding-box rejection (avoids O(N) loop most of the time)
+    if (bbDirty) rebuildBoundingBox();
+    if (px < bbMinX || px > bbMaxX || py < bbMinY || py > bbMaxY)
       return false;
 
     int n = polygon.size();
@@ -150,6 +172,7 @@ public class TerritoryManager {
     }
 
     polygon = best;
+    bbDirty = true; // polygon changed — invalidate bounding box
   }
 
   /** Build one candidate polygon by stitching a boundary arc + trail. */
@@ -282,6 +305,7 @@ public class TerritoryManager {
   /** Clears territory (on player death). */
   public void clearTerritory() {
     polygon.clear();
+    bbDirty = true;
   }
 
   /** Returns a copy of the current polygon vertices. */
