@@ -6,8 +6,8 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 public class ClientHandler implements Runnable {
-    private final Socket       socket;
-    private final GameServer   server;
+    private final Socket socket;
+    private final GameServer server;
     private ObjectOutputStream out;
     private ObjectInputStream  in;
 
@@ -34,7 +34,7 @@ public class ClientHandler implements Runnable {
         try {
             out = new ObjectOutputStream(socket.getOutputStream());
             out.flush();
-            in  = new ObjectInputStream(socket.getInputStream());
+            in = new ObjectInputStream(socket.getInputStream());
 
             System.out.println("[Server] Client connected: " + socket.getInetAddress());
 
@@ -108,7 +108,7 @@ public class ClientHandler implements Runnable {
     public void disconnect() {
         if (!running) return; // already disconnected
         running = false;
-        try { if (in  != null) in.close();  } catch (IOException ignored) {}
+        try { if (in != null) in.close(); } catch (IOException ignored) {}
         try { if (out != null) out.close(); } catch (IOException ignored) {}
         try { socket.close(); }              catch (IOException ignored) {}
         server.onClientDisconnected(this);
