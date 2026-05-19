@@ -260,7 +260,8 @@ public class GameOverModal {
         }
 
         double scoreSz = clamp(mw * 0.030, 18, 50);
-        Label lbl = new Label(String.format("Final Territory: %.1f%%", myTerritoryPct));
+        double displayPct = Math.max(0.2, myTerritoryPct);
+        Label lbl = new Label(String.format("Final Territory: %.1f%%", displayPct));
         lbl.setFont(Font.font(UIUtils.MAIN_FONT, scoreSz));
         lbl.setStyle("-fx-text-fill: " + C_BROWN + ";");
         box.getChildren().add(lbl);
@@ -355,7 +356,8 @@ public class GameOverModal {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label pctLbl = new Label(String.format("%.1f%%", r.territoryPercent));
+        double displayPct = Math.max(0.2, r.territoryPercent);
+        Label pctLbl = new Label(String.format("%.1f%%", displayPct));
         pctLbl.setFont(Font.font(UIUtils.MAIN_FONT, clamp(fontSize * 0.9, 11, 30)));
         pctLbl.setStyle("-fx-text-fill: " + C_BROWN + ";");
 
