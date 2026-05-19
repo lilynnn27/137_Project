@@ -1,6 +1,11 @@
 # 137 Project
 
-Networked Game Project in Java by Amistoso, Magnaye, and Tiamzon.
+Networked Game Project in Java.
+
+## Team Members
+- Erin Reiley Amistoso
+- Mary Eunice Magnaye
+- Edgar Alan Emmanuel Tiamzon III
 
 ## How to Run
 
@@ -30,6 +35,30 @@ java -jar target\project137-game-1.0-SNAPSHOT-fat.jar
 ```bash
 java -jar project137-game-1.0-SNAPSHOT-fat.jar
 ```
+
+
+## Game Mechanics
+
+### Core Rules
+- *Leave a Trail*: Your empanada always moves and leaves a dough trail behind as you roam outside your territory.
+- *Close a Loop*: Return to your own territory to enclose an area — all tiles inside become yours!
+
+### Items and Hazards
+- *Rolling Pin*: -30% speed
+- *Ice Spill*: Freeze
+- *Rotten Egg*: Reverse controls
+- *Spilled Oil*: 1.5x speed
+- *Dough*: Wider trail
+- *Flour*: Invisible trail to enemies
+
+### How to Win
+When the timer runs out, the player with the most territory (%) wins. If only one player remains before time's up, they win immediately. In timed mode, eliminated players respawn after 3 seconds.
+
+## Main Menu & Controls
+
+### Controls
+- *Move*: W, A, S, D or Arrow Keys (↑, ↓, ←, →)
+- *Mouse Cursor*: Used for navigating the UI and menus.
 
 ## Folder Organization
 
