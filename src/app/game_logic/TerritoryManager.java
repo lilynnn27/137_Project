@@ -7,40 +7,30 @@ import javafx.scene.paint.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manages the player's owned territory as a filled polygon.
- *
- * Territory is represented as an ordered list of 2-D vertices.
- *
- * Capture logic:
- * When the player returns to their territory after leaving a trail, the trail
- * points are MERGED with the territory boundary to form a new, larger polygon.
- * The simplest correct approach: the new polygon is the convex / concave hull
- * formed by the old territory + trail. For Splix-style gameplay we use a
- * simpler "stitch" approach: find where the trail's endpoints touch the
- * boundary and replace the boundary segment between those two touch-points
- * with the trail, choosing the side that ADDS area.
- *
- * Initial territory:
- * A small square / diamond centred on the player spawn.
- */
 public class TerritoryManager {
 
   /** The current territory polygon vertices, in order. */
   private List<Point2D> polygon = new ArrayList<>();
 
+  // ---- Bounding-box cache for fast point-rejection ----
+  private double bbMinX = 0, bbMaxX = 0, bbMinY = 0, bbMaxY = 0;
+  private boolean bbDirty = true;
+
+  private void rebuildBoundingBox() {
+    bbMinX = Double.MAX_VALUE; bbMaxX = -Double.MAX_VALUE;
+    bbMinY = Double.MAX_VALUE; bbMaxY = -Double.MAX_VALUE;
+    for (Point2D p : polygon) {
+      if (p.getX() < bbMinX) bbMinX = p.getX();
+      if (p.getX() > bbMaxX) bbMaxX = p.getX();
+      if (p.getY() < bbMinY) bbMinY = p.getY();
+      if (p.getY() > bbMaxY) bbMaxY = p.getY();
+    }
+    bbDirty = false;
+  }
+
   // -----------------------------------------------------------------------
   // Initialisation
   // -----------------------------------------------------------------------
-
-  /**
-   * Creates the starting territory: a circle-shaped polygon centred on (cx, cy).
-   * Uses 32 vertices to closely approximate the round dough shape.
-   *
-   * @param cx     Centre X of spawn point (world coordinates)
-   * @param cy     Centre Y of spawn point
-   * @param radius Radius of the starting circle
-   */
   public void initStartingTerritory(double cx, double cy, double radius) {
     polygon.clear();
     int SIDES = 32; // enough sides to look like a smooth circle
@@ -50,18 +40,19 @@ public class TerritoryManager {
           cx + radius * Math.cos(angle),
           cy + radius * Math.sin(angle)));
     }
+    bbDirty = true;
   }
 
   // -----------------------------------------------------------------------
   // Territory queries
   // -----------------------------------------------------------------------
-
-  /**
-   * Returns {@code true} if the point (px, py) is inside the territory polygon.
-   * Uses the ray-casting algorithm.
-   */
   public boolean isInsideTerritory(double px, double py) {
     if (polygon.size() < 3)
+      return false;
+
+    // Fast bounding-box rejection (avoids O(N) loop most of the time)
+    if (bbDirty) rebuildBoundingBox();
+    if (px < bbMinX || px > bbMaxX || py < bbMinY || py > bbMaxY)
       return false;
 
     int n = polygon.size();
@@ -92,21 +83,6 @@ public class TerritoryManager {
   // -----------------------------------------------------------------------
   // Capture
   // -----------------------------------------------------------------------
-
-  /**
-   * Expands the territory by merging the trail into the boundary polygon.
-   * Territory is permanent — it only ever grows, never shrinks.
-   *
-   * Algorithm (Splix-style "stitch"):
-   * 1. Use the trail's first/last points to find the nearest boundary vertices
-   * (exit stitch and entry stitch).
-   * 2. Build two candidate polygons: one going each way around the boundary,
-   * with the trail appended to close the loop without self-intersection.
-   * 3. Accept the largest candidate that is ≥ the current territory area.
-   *
-   * @param trail The recorded trail points (index 0 = near exit, last = near
-   *              entry).
-   */
   public void captureTerritory(List<Point2D> trail) {
     if (polygon.size() < 3 || trail.size() < 2)
       return;
@@ -150,6 +126,7 @@ public class TerritoryManager {
     }
 
     polygon = best;
+    bbDirty = true; // polygon changed — invalidate bounding box
   }
 
   /** Build one candidate polygon by stitching a boundary arc + trail. */
@@ -249,28 +226,28 @@ public class TerritoryManager {
   // Rendering
   // -----------------------------------------------------------------------
 
-  /**
-   * Draws the territory as a filled polygon with a colored border.
-   *
-   * @param gc    GraphicsContext (already translated to world space)
-   * @param color The player's dough color
-   */
+  private double[] cachedXs = new double[0];
+  private double[] cachedYs = new double[0];
+  
   public void drawTerritory(GraphicsContext gc, Color color) {
     if (polygon.size() < 3)
       return;
 
-    double[] xs = new double[polygon.size()];
-    double[] ys = new double[polygon.size()];
-    for (int i = 0; i < polygon.size(); i++) {
-      xs[i] = polygon.get(i).getX();
-      ys[i] = polygon.get(i).getY();
+    int size = polygon.size();
+    if (bbDirty || cachedXs.length != size) {
+      cachedXs = new double[size];
+      cachedYs = new double[size];
+      for (int i = 0; i < size; i++) {
+        cachedXs[i] = polygon.get(i).getX();
+        cachedYs[i] = polygon.get(i).getY();
+      }
     }
 
     gc.save();
 
     // Filled interior — 100% opaque, no outline
-    gc.setFill(Color.color(color.getRed(), color.getGreen(), color.getBlue(), 1.0));
-    gc.fillPolygon(xs, ys, polygon.size());
+    gc.setFill(color);
+    gc.fillPolygon(cachedXs, cachedYs, size);
 
     gc.restore();
   }
@@ -282,6 +259,7 @@ public class TerritoryManager {
   /** Clears territory (on player death). */
   public void clearTerritory() {
     polygon.clear();
+    bbDirty = true;
   }
 
   /** Returns a copy of the current polygon vertices. */

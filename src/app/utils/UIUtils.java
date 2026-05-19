@@ -1,21 +1,22 @@
 package app.utils;
 
-import javafx.scene.control.Button;
-import javafx.scene.image.Image;
-import javafx.scene.text.Font;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
+
+import javafx.scene.control.Button;
+import javafx.scene.image.Image;
+import javafx.scene.text.Font;
 
 public class UIUtils {
     public static String MAIN_FONT;
 
     static {
         try {
-            File fontFile = new File("assets/fonts/MainFont.ttf");
-            if (fontFile.exists()) {
-                Font loadedFont = Font.loadFont(new FileInputStream(fontFile), 12);
+            java.net.URL fontUrl = UIUtils.class.getResource("/assets/fonts/MainFont.ttf");
+            if (fontUrl != null) {
+                Font loadedFont = Font.loadFont(fontUrl.toExternalForm(), 12);
                 MAIN_FONT = loadedFont.getFamily();
             } else {
                 MAIN_FONT = "Arial";
@@ -38,10 +39,6 @@ public class UIUtils {
         btn.setOnMouseExited(e -> btn.setStyle(normalStyle));
     }
 
-    /**
-     * Shared image cache — preloaded once at startup on background threads so
-     * screen constructors never block the JavaFX UI thread loading large images.
-     */
     public static final class ImageCache {
         private static final Map<String, Image> CACHE = new HashMap<>();
 
@@ -61,29 +58,27 @@ public class UIUtils {
             "assets/images/powerup/Flour-Powerup.png"
         };
 
-        /** Call once at app startup (before building any screen). */
         public static void preload() {
             for (String path : PRELOAD_PATHS) {
-                File f = new File(path);
-                if (f.exists()) {
-                    // backgroundLoading=true: loads on a background thread, never blocks UI
-                    CACHE.put(path, new Image(f.toURI().toString(), true));
-                }
+                try {
+                    java.net.URL url = UIUtils.class.getResource("/" + path);
+                    if (url != null) {
+                        CACHE.put(path, new Image(url.toExternalForm(), 1920, 1080, true, true, false));
+                    }
+                } catch(Exception e) {}
             }
         }
 
-        /**
-         * Returns the cached image for {@code path}, or attempts a background
-         * load if not yet cached. Returns {@code null} if the file does not exist.
-         */
         public static Image get(String path) {
             Image img = CACHE.get(path);
             if (img != null && !img.isError()) return img;
-            File f = new File(path);
-            if (f.exists()) {
-                img = new Image(f.toURI().toString(), true);
-                CACHE.put(path, img);
-            }
+            try {
+                java.net.URL url = UIUtils.class.getResource("/" + path);
+                if (url != null) {
+                    img = new Image(url.toExternalForm(), 1920, 1080, true, true, false);
+                    CACHE.put(path, img);
+                }
+            } catch(Exception e) {}
             return img;
         }
     }

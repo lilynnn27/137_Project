@@ -18,25 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import app.network.NetworkMessage.GameResult;
 import app.network.NetworkMessage.LobbyPlayer;
 import app.network.NetworkMessage.PlayerState;
-
-/**
- * GameServer — the authoritative server for one match of The Tray.
- *
- * Lifecycle:
- *   1. {@link #start()} opens the ServerSocket and begins accepting clients.
- *   2. Clients connect and send PLAYER_JOIN → lobby roster is broadcast.
- *   3. Once ≥ {@link #MIN_PLAYERS} clients are all ready, the game begins.
- *   4. During gameplay, position updates are collected and re-broadcast as a
- *      GAME_STATE snapshot at ~20 Hz.
- *   5. When the game timer expires, a GAME_OVER message is broadcast and the
- *      server shuts down.
- *
- * Threading model:
- *   - One thread per client (inside {@link ClientHandler}).
- *   - One ScheduledExecutorService for the game-state broadcast loop.
- *   - All shared state is guarded by {@code synchronized(clients)} or uses
- *     concurrent collections.
- */
 public class GameServer {
 
     // ------------------------------------------------------------------
@@ -48,15 +29,11 @@ public class GameServer {
     public static final int MAX_PLAYERS     = 4;
 
     /** Game duration in seconds. Must match GamePlayScreen timer. */
-    private static final int GAME_DURATION_SECONDS = 40;
+    private static final int GAME_DURATION_SECONDS = 180;
 
     /** How often the server broadcasts a GAME_STATE snapshot (milliseconds). */
     private static final long BROADCAST_INTERVAL_MS = 50; // ~20 Hz
 
-    /**
-     * Dough colors assigned in join order.
-     * Matches the color map in GamePlayScreen so sprites stay consistent.
-     */
     private static final String[] PLAYER_COLORS = {
         "#FF7043", // orange
         "#1E88E5", // blue
@@ -68,10 +45,6 @@ public class GameServer {
         "#3949AB"  // indigo
     };
 
-    /**
-     * Spawn angles (degrees) for up to 8 players, evenly distributed around
-     * the arena so no two players start adjacent.
-     */
     private static final double[] SPAWN_ANGLES_DEG = {
         0, 180, 90, 270,   // 4 players: E, W, N, S
         45, 225, 135, 315  // 5-8 players: NE, SW, NW, SE
@@ -90,10 +63,6 @@ public class GameServer {
     private final CopyOnWriteArrayList<ClientHandler> clients =
             new CopyOnWriteArrayList<>();
 
-    /**
-     * Latest position snapshot per playerId.
-     * Written by ClientHandler threads; read by the broadcast scheduler.
-     */
     private final Map<Integer, PlayerState> latestStates =
             Collections.synchronizedMap(new LinkedHashMap<>());
 
@@ -105,6 +74,7 @@ public class GameServer {
     private ServerSocket serverSocket;
     private volatile boolean accepting = true;  // accept-loop flag
     private volatile boolean gameStarted = false;
+    private volatile boolean gameEnded  = false;
 
     /** True while a server is bound to the port. Checked by MultiplayerScreen to prevent double-bind. */
     private static volatile boolean serverRunning = false;
@@ -129,15 +99,6 @@ public class GameServer {
     // Lifecycle
     // ------------------------------------------------------------------
 
-    /**
-     * Opens the server socket and blocks accepting clients on the calling
-     * thread until {@link #stop()} is called or an I/O error occurs.
-     *
-     * Call this from a dedicated thread so the UI stays responsive:
-     * <pre>
-     *   new Thread(() -> server.start()).start();
-     * </pre>
-     */
     public void start() {
         try {
             serverSocket = new ServerSocket(port);
@@ -176,7 +137,7 @@ public class GameServer {
         }
     }
 
-    /** Shuts down the server gracefully. */
+    //Stops the server
     public void stop() {
         serverRunning = false;
         accepting = false;
@@ -190,10 +151,6 @@ public class GameServer {
     // Event handlers — called by ClientHandler threads
     // ------------------------------------------------------------------
 
-    /**
-     * A new client has sent PLAYER_JOIN.
-     * Assigns an ID + color, adds to roster, broadcasts LOBBY_UPDATE.
-     */
     public synchronized void onPlayerJoin(ClientHandler handler) {
         int id = nextPlayerId.getAndIncrement();
         handler.setPlayerId(id);
@@ -202,19 +159,17 @@ public class GameServer {
 
         // Send the assigned id/color back to this client as a LOBBY_UPDATE
         // (the client reads its own id from the first slot matching its name)
-        System.out.println("[Server] Player joined: " + handler.getPlayerName()
-                           + " → id=" + id + " color=" + color);
+        System.out.println("[Server] Player joined: " + handler.getPlayerName() + " → id=" + id + " color=" + color);
 
         // Seed an empty state so the player appears in broadcasts immediately
         latestStates.put(id, new PlayerState(
-            id, handler.getPlayerName(), color,
-            0, 0, 1, 0, new double[0], false, 0.0
+            id, handler.getPlayerName(), color, 0, 0, 1, 0, new double[0], false, 0.0
         ));
 
         broadcastLobbyUpdate();
     }
 
-    /** A client toggled "ready". Check if we can start. */
+    //Ready toggle
     public synchronized void onPlayerReady(ClientHandler handler) {
         int id = handler.getPlayerId();
         if (!readyPlayers.contains(id)) {
@@ -227,7 +182,20 @@ public class GameServer {
         checkStartCondition();
     }
 
-    /** Received a POSITION_UPDATE from a client — store it. */
+    // Chat Message
+    public void onChat(ClientHandler handler, NetworkMessage msg) {
+        int id = handler.getPlayerId();
+        PlayerState state = latestStates.get(id);
+        if (state != null) {
+            msg.colorHex = state.colorHex;
+        } else {
+            msg.colorHex = "#FFFFFF";
+        }
+        System.out.println("[Chat] " + msg.playerName + ": " + msg.message);
+        broadcast(msg);
+    }
+
+    //Position Update
     public void onPositionUpdate(ClientHandler handler, NetworkMessage msg) {
         if (!gameStarted) return;
 
@@ -245,7 +213,7 @@ public class GameServer {
         ));
     }
 
-    /** A client's socket closed (crash, disconnect, etc.). */
+    // A client's socket closed (crash, disconnect, etc.)
     public synchronized void onClientDisconnected(ClientHandler handler) {
         clients.remove(handler);
         int id = handler.getPlayerId();
@@ -257,15 +225,24 @@ public class GameServer {
                 broadcastLobbyUpdate();
             } else {
                 broadcast(NetworkMessage.playerDied(id));
+                // Last-player-standing: if only one client remains, end the game now.
+                checkLastPlayerStanding();
             }
         }
     }
 
-    // ------------------------------------------------------------------
-    // Lobby helpers
-    // ------------------------------------------------------------------
+    private void checkLastPlayerStanding() {
+        if (!gameStarted) return;
+        long alive = clients.stream().filter(c -> c.getPlayerId() != -1).count();
+        if (alive <= 1) {
+            System.out.println("[Server] Last player standing — ending game early.");
+            // Run on a new thread so we don't deadlock inside the synchronized block.
+            new Thread(this::endGame, "EndGameThread").start();
+        }
+    }
 
-    /** Broadcasts the current lobby roster to every connected client. */
+    // Lobby helpers
+    // Broadcasts the current lobby roster to every connected client.
     private void broadcastLobbyUpdate() {
         List<LobbyPlayer> roster = buildRoster();
         NetworkMessage msg = NetworkMessage.lobbyUpdate(roster);
@@ -285,16 +262,14 @@ public class GameServer {
             if (id == -1) continue; // not yet joined
             PlayerState state = latestStates.get(id);
             String color = state != null ? state.colorHex : "#FFFFFF";
-            list.add(new LobbyPlayer(id, c.getPlayerName(), color,
-                                     readyPlayers.contains(id)));
+            list.add(new LobbyPlayer(id, c.getPlayerName(), color, readyPlayers.contains(id)));
         }
         return list;
     }
 
-    /**
-     * Checks whether all connected players (≥ MIN_PLAYERS) are ready.
-     * If so, kicks off the game.
-     */
+    
+    //Checks whether all connected players (≥ MIN_PLAYERS) are ready.
+    //If so, kicks off the game.
     private void checkStartCondition() {
         if (gameStarted) return;
         int connected = (int) clients.stream().filter(c -> c.getPlayerId() != -1).count();
@@ -303,10 +278,7 @@ public class GameServer {
         }
     }
 
-    // ------------------------------------------------------------------
     // Game start
-    // ------------------------------------------------------------------
-
     private synchronized void startGame() {
         if (gameStarted) return;
         gameStarted = true;
@@ -356,10 +328,7 @@ public class GameServer {
         );
     }
 
-    // ------------------------------------------------------------------
     // In-game broadcast
-    // ------------------------------------------------------------------
-
     private void broadcastGameState() {
         List<PlayerState> snapshot;
         synchronized (latestStates) {
@@ -368,19 +337,17 @@ public class GameServer {
         broadcast(NetworkMessage.gameState(snapshot));
     }
 
-    // ------------------------------------------------------------------
     // Game over
-    // ------------------------------------------------------------------
-
-    private void endGame() {
+    private synchronized void endGame() {
+        if (gameEnded) return; // guard against timer + last-standing double-fire
+        gameEnded = true;
         System.out.println("[Server] Game over — computing results.");
-        broadcastScheduler.shutdown();
+        if (broadcastScheduler != null) broadcastScheduler.shutdown();
 
         List<GameResult> results = new ArrayList<>();
         synchronized (latestStates) {
             for (PlayerState s : latestStates.values()) {
-                results.add(new GameResult(s.playerId, s.playerName,
-                                           s.colorHex, s.territoryPercent, 0));
+                results.add(new GameResult(s.playerId, s.playerName, s.colorHex, s.territoryPercent, 0));
             }
         }
 
@@ -400,12 +367,6 @@ public class GameServer {
     // ------------------------------------------------------------------
     // Broadcast helper
     // ------------------------------------------------------------------
-
-    /**
-     * Writes a REJECTED message to a socket that has not yet been handed to a
-     * ClientHandler, then lets the caller close the socket.  The OOS header
-     * must be flushed first so the client's OIS creation doesn't deadlock.
-     */
     private void sendRejection(Socket socket, String reason) {
         try {
             ObjectOutputStream rejectOut = new ObjectOutputStream(socket.getOutputStream());
