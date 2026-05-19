@@ -13,15 +13,15 @@ import app.network.NetworkMessage.PlayerState;
 
 public class GameClient {
     private final String host;
-    private final int    port;
+    private final int port;
     private final String playerName;
 
-    private Socket             socket;
+    private Socket socket;
     private ObjectOutputStream out;
     private ObjectInputStream  in;
 
     // Assigned by the server after PLAYER_JOIN is acknowledged.
-    private volatile int  myPlayerId = -1;
+    private volatile int myPlayerId = -1;
     private volatile boolean running = false;
 
     // ------------------------------------------------------------------
@@ -57,8 +57,8 @@ public class GameClient {
     // ------------------------------------------------------------------
 
     public GameClient(String host, int port, String playerName) {
-        this.host       = host;
-        this.port       = port;
+        this.host = host;
+        this.port = port;
         this.playerName = playerName;
     }
 
@@ -221,7 +221,7 @@ public class GameClient {
     public void disconnect() {
         if (!running) return;
         running = false;
-        try { if (in  != null) in.close();  } catch (IOException ignored) {}
+        try { if (in != null) in.close(); } catch (IOException ignored) {}
         try { if (out != null) out.close(); } catch (IOException ignored) {}
         try { if (socket != null) socket.close(); } catch (IOException ignored) {}
         System.out.println("[Client] Disconnected.");
