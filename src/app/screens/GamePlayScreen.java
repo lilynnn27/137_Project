@@ -269,9 +269,9 @@ public class GamePlayScreen {
         root = new Pane();
 
         // --- Background ---
-        File bgFile = new File("assets/images/GameplayBackground.jpg");
-        if (bgFile.exists()) {
-            bgImage = UIUtils.ImageCache.get("assets/images/GameplayBackground.jpg");
+        // --- Background ---
+        bgImage = UIUtils.ImageCache.get("assets/images/GameplayBackground.jpg");
+        if (bgImage != null && !bgImage.isError()) {
             javafx.scene.layout.BackgroundImage background = new javafx.scene.layout.BackgroundImage(
                     bgImage,
                     javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
@@ -320,9 +320,8 @@ public class GamePlayScreen {
         }
         PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
 
-        File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
-        if (playerFile.exists()) {
-            playerSpriteImage = UIUtils.ImageCache.get("assets/images/PlayersDough/" + chosenDough + ".png");
+        playerSpriteImage = UIUtils.ImageCache.get("assets/images/PlayersDough/" + chosenDough + ".png");
+        if (playerSpriteImage != null && !playerSpriteImage.isError()) {
             playerSprite = new ImageView(playerSpriteImage);
             playerSprite.setPreserveRatio(true);
             playerSprite.setSmooth(true);
@@ -333,35 +332,17 @@ public class GamePlayScreen {
             world.getChildren().add(playerSprite);
 
         // --- H1 Rolling Pin hazard sprite ---
-        File rpFile = new File("assets/images/hazard/RollingPin-Hazard.png");
-        if (rpFile.exists()) {
-            rollingPinSprite = UIUtils.ImageCache.get("assets/images/hazard/RollingPin-Hazard.png");
-        }
+        rollingPinSprite = UIUtils.ImageCache.get("assets/images/hazard/RollingPin-Hazard.png");
 
         // --- H2 Ice Spill hazard sprite ---
-        File iceFile = new File("assets/images/hazard/Ice-Hazard.png");
-        if (iceFile.exists()) {
-            iceSprite = UIUtils.ImageCache.get("assets/images/hazard/Ice-Hazard.png");
-        }
+        iceSprite = UIUtils.ImageCache.get("assets/images/hazard/Ice-Hazard.png");
 
-        File reFile = new File("assets/images/hazard/RottenEgg-Hazard.png");
-        if (reFile.exists()) {
-            rottenEggSprite = UIUtils.ImageCache.get("assets/images/hazard/RottenEgg-Hazard.png");
-        }
+        rottenEggSprite = UIUtils.ImageCache.get("assets/images/hazard/RottenEgg-Hazard.png");
 
         // --- Powerup sprites ---
-        File oilFile = new File("assets/images/powerup/Oil-Powerup.png");
-        if (oilFile.exists()) {
-            oilSprite = UIUtils.ImageCache.get("assets/images/powerup/Oil-Powerup.png");
-        }
-        File doughPFile = new File("assets/images/powerup/Dough-Powerup.png");
-        if (doughPFile.exists()) {
-            doughPowerupSprite = UIUtils.ImageCache.get("assets/images/powerup/Dough-Powerup.png");
-        }
-        File flourFile = new File("assets/images/powerup/Flour-Powerup.png");
-        if (flourFile.exists()) {
-            flourSprite = UIUtils.ImageCache.get("assets/images/powerup/Flour-Powerup.png");
-        }
+        oilSprite = UIUtils.ImageCache.get("assets/images/powerup/Oil-Powerup.png");
+        doughPowerupSprite = UIUtils.ImageCache.get("assets/images/powerup/Dough-Powerup.png");
+        flourSprite = UIUtils.ImageCache.get("assets/images/powerup/Flour-Powerup.png");
 
         // --- Starting territory centred on spawn ---
         territoryManager.initStartingTerritory(playerX, playerY, 70);

@@ -38,7 +38,10 @@ public class Main extends Application {
         rulesPage = new RulesPage(this);
 
         mainScene = new javafx.scene.Scene(new javafx.scene.layout.Pane(), 1024, 768);
-        mainScene.getStylesheets().add(new java.io.File("assets/css/app.css").toURI().toString());
+        java.net.URL cssUrl = getClass().getResource("/assets/css/app.css");
+        if (cssUrl != null) {
+            mainScene.getStylesheets().add(cssUrl.toExternalForm());
+        }
         window.setScene(mainScene);
 
         showLandingPage();

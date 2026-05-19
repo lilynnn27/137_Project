@@ -14,9 +14,9 @@ public class UIUtils {
 
     static {
         try {
-            File fontFile = new File("assets/fonts/MainFont.ttf");
-            if (fontFile.exists()) {
-                Font loadedFont = Font.loadFont(new FileInputStream(fontFile), 12);
+            java.net.URL fontUrl = UIUtils.class.getResource("/assets/fonts/MainFont.ttf");
+            if (fontUrl != null) {
+                Font loadedFont = Font.loadFont(fontUrl.toExternalForm(), 12);
                 MAIN_FONT = loadedFont.getFamily();
             } else {
                 MAIN_FONT = "Arial";
@@ -60,22 +60,25 @@ public class UIUtils {
 
         public static void preload() {
             for (String path : PRELOAD_PATHS) {
-                File f = new File(path);
-                if (f.exists()) {
-                    // Downscale to max 1920x1080 to prevent D3D out-of-VRAM NPE crash
-                    CACHE.put(path, new Image(f.toURI().toString(), 1920, 1080, true, true, false));
-                }
+                try {
+                    java.net.URL url = UIUtils.class.getResource("/" + path);
+                    if (url != null) {
+                        CACHE.put(path, new Image(url.toExternalForm(), 1920, 1080, true, true, false));
+                    }
+                } catch(Exception e) {}
             }
         }
 
         public static Image get(String path) {
             Image img = CACHE.get(path);
             if (img != null && !img.isError()) return img;
-            File f = new File(path);
-            if (f.exists()) {
-                img = new Image(f.toURI().toString(), 1920, 1080, true, true, false);
-                CACHE.put(path, img);
-            }
+            try {
+                java.net.URL url = UIUtils.class.getResource("/" + path);
+                if (url != null) {
+                    img = new Image(url.toExternalForm(), 1920, 1080, true, true, false);
+                    CACHE.put(path, img);
+                }
+            } catch(Exception e) {}
             return img;
         }
     }
