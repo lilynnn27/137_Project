@@ -7,12 +7,14 @@ import javafx.scene.image.Image;
  * Abstract base for all hazards and power-ups (H1–H3, P1–P3).
  *
  * Handles the shared pickup lifecycle:
- *   spawn at position → render on canvas → collision detection → despawn on contact.
+ * spawn at position → render on canvas → collision detection → despawn on
+ * contact.
  *
  * Subclasses declare their effect via getEffectDurationSeconds() and any
  * effect-specific constants (e.g. SPEED_MULTIPLIER for SlowingHazard).
  * GamePlayScreen reads those constants and applies the effect itself so each
- * hazard/powerup stays a simple data class with no back-reference to the screen.
+ * hazard/powerup stays a simple data class with no back-reference to the
+ * screen.
  */
 public abstract class PickupEntity {
 
@@ -21,8 +23,8 @@ public abstract class PickupEntity {
     private boolean active = true;
     private final Image sprite;
 
-    private static final double SPRITE_SIZE = 50.0;
-    private static final double COLLISION_RADIUS = 35.0;
+    private static final double SPRITE_SIZE = 80.0;
+    private static final double COLLISION_RADIUS = 55.0;
 
     protected PickupEntity(double x, double y, Image sprite) {
         this.x = x;
@@ -40,6 +42,14 @@ public abstract class PickupEntity {
 
     public void despawn() {
         active = false;
+    }
+
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
     }
 
     // -----------------------------------------------------------------------
@@ -61,7 +71,8 @@ public abstract class PickupEntity {
      * aligns with the canvas centre — same convention as territory/trail drawing.
      */
     public void draw(GraphicsContext gc) {
-        if (!active || sprite == null) return;
+        if (!active || sprite == null)
+            return;
         gc.drawImage(sprite,
                 x - SPRITE_SIZE / 2,
                 y - SPRITE_SIZE / 2,
