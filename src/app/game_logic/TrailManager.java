@@ -6,15 +6,6 @@ import javafx.scene.paint.Color;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manages the player's trail line drawn outside their territory.
- *
- * Rules:
- * - Trail only records points while the player is OUTSIDE their territory.
- * - Trail is drawn as a colored line matching the player's dough color.
- * - Self-collision (touching own trail) → player dies.
- * - Trail is cleared on successful capture OR player death.
- */
 public class TrailManager {
 
   private final List<Point2D> points = new ArrayList<>();
@@ -39,16 +30,6 @@ public class TrailManager {
     this.widthMultiplier = m;
   }
 
-  /**
-   * Called every game frame.
-   *
-   * @param x                 Current player world X
-   * @param y                 Current player world Y
-   * @param isInsideTerritory Whether the player is currently inside their own
-   *                          territory
-   * @return {@code true} if the player just returned to their territory (capture
-   *         event)
-   */
   public boolean update(double x, double y, boolean isInsideTerritory) {
     if (isInsideTerritory) {
       if (active && points.size() >= 2) {
@@ -82,11 +63,6 @@ public class TrailManager {
     return p.distance(new Point2D(a.getX() + t * dx, a.getY() + t * dy));
   }
 
-  /**
-   * Check whether the player's head hits their own trail (self-collision).
-   * Skips the most-recent {@code SELF_COLLISION_SKIP} points to avoid false
-   * positives with the segment immediately behind the player.
-   */
   public boolean checkSelfCollision(double playerX, double playerY) {
     if (points.size() < SELF_COLLISION_SKIP + 2)
       return false;
@@ -103,14 +79,6 @@ public class TrailManager {
     return false;
   }
 
-  /**
-   * Check whether an enemy player's head touches this trail.
-   * No skip zone — the full trail is a hazard to other players.
-   *
-   * @param px Enemy player world X
-   * @param py Enemy player world Y
-   * @return true if the enemy head is within collision radius of any trail point
-   */
   public boolean checkEnemyCollision(double px, double py) {
     if (!active || points.size() < 2)
       return false;
@@ -126,10 +94,6 @@ public class TrailManager {
     return false;
   }
 
-  /**
-   * Returns the current trail points (a snapshot copy).
-   * Used by TerritoryManager to compute the enclosed polygon for capture.
-   */
   public List<Point2D> getTrailPoints() {
     return new ArrayList<>(points);
   }
@@ -145,13 +109,6 @@ public class TrailManager {
     active = false;
   }
 
-  /**
-   * Draws the trail as a single polyline using the player's color.
-   *
-   * @param gc    The GraphicsContext (already translated so world (0,0) is
-   *              correct)
-   * @param color The player's dough color
-   */
   private double[] cachedXs = new double[128];
   private double[] cachedYs = new double[128];
 
