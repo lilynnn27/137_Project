@@ -378,7 +378,8 @@ public class GamePlayScreen {
                         return;
                     if (!isDead) {
                         isDead = true;
-                        showGameOver();
+                        double pct = Math.max(0.2, territoryManager.getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0);
+                        showGameOver(pct);
                     }
                 });
         gameTimer.start();
@@ -780,6 +781,9 @@ public class GamePlayScreen {
     private void handleDeath() {
         if (isDead)
             return;
+            
+        double finalTerritoryPct = Math.max(0.2, territoryManager.getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0);
+        
         isDead = true;
         trailManager.clear();
         territoryManager.clearTerritory();
@@ -798,10 +802,10 @@ public class GamePlayScreen {
             // while others may still be playing. Build a snapshot of known results.
             java.util.List<app.network.NetworkMessage.GameResult> snapshot = new java.util.ArrayList<>();
 
-            // Local player just died — territory is 0
+            // Local player just died — use captured territory
             String myHex = "#" + PLAYER_COLOR.toString().substring(2, 8).toUpperCase();
             snapshot.add(new app.network.NetworkMessage.GameResult(
-                    myPlayerId, myPlayerName, myHex, 0.0, 0));
+                    myPlayerId, myPlayerName, myHex, finalTerritoryPct, 0));
 
             for (java.util.Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
                 int id = entry.getKey();
@@ -823,7 +827,7 @@ public class GamePlayScreen {
 
             showMultiplayerGameOver(snapshot);
         } else {
-            showGameOver();
+            showGameOver(finalTerritoryPct);
         }
     }
 
@@ -831,14 +835,12 @@ public class GamePlayScreen {
     // Game Over
     // -----------------------------------------------------------------------
 
-    private void showGameOver() {
+    private void showGameOver(double finalTerritoryPct) {
         gameTimer.stop();
         gameLoop.stop();
 
-        double territoryPct = territoryManager
-                .getApproximateAreaFraction(Math.PI * 1500 * 1500) * 100.0;
         String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
-        GameOverModal modal = new GameOverModal(mainApp, territoryPct, spritePath);
+        GameOverModal modal = new GameOverModal(mainApp, finalTerritoryPct, spritePath);
         modal.show();
     }
 
