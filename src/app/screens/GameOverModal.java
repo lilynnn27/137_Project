@@ -25,16 +25,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-/**
- * GameOverModal
- *
- * Single-player: shows GAME OVER + territory % + player sprite + Retry/Menu.
- * Multiplayer : shows YOU WIN / YOU LOSE / IT'S A TIE! + full ranked
- * leaderboard with each player's dough sprite and territory %.
- *
- * Entirely responsive — modal size is derived from the primary stage so it
- * looks correct on any resolution.
- */
 public class GameOverModal {
 
     // ── Theme colours ────────────────────────────────────────────────────
@@ -63,12 +53,6 @@ public class GameOverModal {
 
     private final boolean isMultiplayer;
 
-    /**
-     * How the game ended — controls the witty subtitle line.
-     * TIMER : time ran out (single-player always uses this)
-     * LAST : last player standing (someone died)
-     * NORMAL : server triggered a normal end
-     */
     public enum EndReason {
         TIMER, LAST_STANDING, NORMAL
     }
@@ -134,15 +118,8 @@ public class GameOverModal {
         mainApp.setBackgroundBlur(true);
 
         // Derive a reference width from the primary stage.
-        // We do NOT fix a rigid height — instead we let the window sizeToScene()
-        // after the content is built, so the background always covers exactly what
-        // is inside and nothing overflows.
         double sw = mainApp.getPrimaryStage().getWidth();
         double mw = clamp(sw * 0.68, 600, 1200);
-
-        // The tray image is exactly 666x375. Calculate the exact physical height it
-        // will take
-        // to ensure all vertical padding and gaps scale properly within the graphic.
         double imgRatio = 375.0 / 666.0;
         double mh = mw * imgRatio;
 
@@ -190,8 +167,6 @@ public class GameOverModal {
             });
             btnRow.getChildren().add(retry);
         } else {
-            // Issue 4: multiplayer gets a "Play Again" button that returns to the
-            // lobby so players wait for fresh connections before the next match.
             Button playAgain = btn("Play Again", btnSz);
             playAgain.setOnAction(e -> {
                 window.close();
@@ -501,12 +476,6 @@ public class GameOverModal {
         return UIUtils.ImageCache.get(path);
     }
 
-    /**
-     * Issue 5: loads a sprite synchronously (backgroundLoading=false) so the
-     * image is guaranteed to be fully decoded before it is handed to an
-     * ImageView. UIUtils.ImageCache uses backgroundLoading=true which can
-     * return an in-progress image whose isError() check is unreliable.
-     */
     private static Image loadSpriteSync(String path) {
         if (path == null)
             return null;

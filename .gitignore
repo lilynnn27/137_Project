@@ -13,3 +13,5 @@ Thumbs.db
 # context files
 CLAUDE.md
 GAME_MECHANICS.md
+config.bat
+node_modules
