@@ -152,6 +152,9 @@ public class TrailManager {
    *              correct)
    * @param color The player's dough color
    */
+  private double[] cachedXs = new double[128];
+  private double[] cachedYs = new double[128];
+
   public void draw(GraphicsContext gc, Color color) {
     if (points.size() < 2)
       return;
@@ -164,12 +167,20 @@ public class TrailManager {
     gc.setGlobalAlpha(0.5);
     gc.setStroke(color);
     gc.setLineWidth(LINE_WIDTH * widthMultiplier);
-    gc.beginPath();
-    gc.moveTo(points.get(0).getX(), points.get(0).getY());
-    for (int i = 1; i < points.size(); i++) {
-      gc.lineTo(points.get(i).getX(), points.get(i).getY());
+    
+    int size = points.size();
+    if (size > cachedXs.length) {
+        int newCap = Math.max(cachedXs.length * 2, size);
+        cachedXs = new double[newCap];
+        cachedYs = new double[newCap];
     }
-    gc.stroke();
+    
+    for (int i = 0; i < size; i++) {
+        cachedXs[i] = points.get(i).getX();
+        cachedYs[i] = points.get(i).getY();
+    }
+    
+    gc.strokePolyline(cachedXs, cachedYs, size);
 
     gc.restore();
   }

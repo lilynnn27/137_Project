@@ -375,11 +375,11 @@ public class GamePlayScreen {
         // --- Timer HUD (from develop branch) ---
         timerLabel = new Label("Time: 00:00");
         timerLabel.setFont(FONT_TIMER);
-        timerLabel.setStyle("-fx-text-fill: white; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
+        timerLabel.setStyle("-fx-text-fill: white; -fx-background-color: rgba(0,0,0,0.5); -fx-padding: 4 12; -fx-background-radius: 8;");
         root.getChildren().add(timerLabel);
 
         gameTimer = new Timer(
-                40, // seconds (set to desired game duration)
+                180, // seconds (set to desired game duration)
                 () -> javafx.application.Platform.runLater(
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {

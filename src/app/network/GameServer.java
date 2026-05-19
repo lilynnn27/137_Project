@@ -29,7 +29,7 @@ public class GameServer {
     public static final int MAX_PLAYERS     = 4;
 
     /** Game duration in seconds. Must match GamePlayScreen timer. */
-    private static final int GAME_DURATION_SECONDS = 40;
+    private static final int GAME_DURATION_SECONDS = 180;
 
     /** How often the server broadcasts a GAME_STATE snapshot (milliseconds). */
     private static final long BROADCAST_INTERVAL_MS = 50; // ~20 Hz

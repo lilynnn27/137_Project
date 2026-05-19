@@ -272,6 +272,9 @@ public class TerritoryManager {
   // Rendering
   // -----------------------------------------------------------------------
 
+  private double[] cachedXs = new double[0];
+  private double[] cachedYs = new double[0];
+
   /**
    * Draws the territory as a filled polygon with a colored border.
    *
@@ -282,18 +285,21 @@ public class TerritoryManager {
     if (polygon.size() < 3)
       return;
 
-    double[] xs = new double[polygon.size()];
-    double[] ys = new double[polygon.size()];
-    for (int i = 0; i < polygon.size(); i++) {
-      xs[i] = polygon.get(i).getX();
-      ys[i] = polygon.get(i).getY();
+    int size = polygon.size();
+    if (bbDirty || cachedXs.length != size) {
+      cachedXs = new double[size];
+      cachedYs = new double[size];
+      for (int i = 0; i < size; i++) {
+        cachedXs[i] = polygon.get(i).getX();
+        cachedYs[i] = polygon.get(i).getY();
+      }
     }
 
     gc.save();
 
     // Filled interior — 100% opaque, no outline
-    gc.setFill(Color.color(color.getRed(), color.getGreen(), color.getBlue(), 1.0));
-    gc.fillPolygon(xs, ys, polygon.size());
+    gc.setFill(color);
+    gc.fillPolygon(cachedXs, cachedYs, size);
 
     gc.restore();
   }
