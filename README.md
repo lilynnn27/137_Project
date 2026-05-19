@@ -21,6 +21,16 @@ You will also need **Maven** installed to manage the JavaFX dependencies. You ca
 .\apache-maven-3.9.6\bin\mvn.cmd clean javafx:run
 ```
 
+## Compilation using jar file inside the repo
+```bash
+java -jar target\project137-game-1.0-SNAPSHOT-fat.jar
+```
+
+## Compilation using jar file outside the repo
+```bash
+java -jar project137-game-1.0-SNAPSHOT-fat.jar
+```
+
 ## Folder Organization
 
 ```text
