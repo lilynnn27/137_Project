@@ -34,10 +34,6 @@ public class GameServer {
     /** How often the server broadcasts a GAME_STATE snapshot (milliseconds). */
     private static final long BROADCAST_INTERVAL_MS = 50; // ~20 Hz
 
-    /**
-     * Dough colors assigned in join order.
-     * Matches the color map in GamePlayScreen so sprites stay consistent.
-     */
     private static final String[] PLAYER_COLORS = {
         "#FF7043", // orange
         "#1E88E5", // blue
@@ -49,10 +45,6 @@ public class GameServer {
         "#3949AB"  // indigo
     };
 
-    /**
-     * Spawn angles (degrees) for up to 8 players, evenly distributed around
-     * the arena so no two players start adjacent.
-     */
     private static final double[] SPAWN_ANGLES_DEG = {
         0, 180, 90, 270,   // 4 players: E, W, N, S
         45, 225, 135, 315  // 5-8 players: NE, SW, NW, SE
@@ -71,10 +63,6 @@ public class GameServer {
     private final CopyOnWriteArrayList<ClientHandler> clients =
             new CopyOnWriteArrayList<>();
 
-    /**
-     * Latest position snapshot per playerId.
-     * Written by ClientHandler threads; read by the broadcast scheduler.
-     */
     private final Map<Integer, PlayerState> latestStates =
             Collections.synchronizedMap(new LinkedHashMap<>());
 
@@ -243,11 +231,6 @@ public class GameServer {
         }
     }
 
-    /**
-     * Called after a player dies/disconnects during a game.
-     * If only one live player remains, trigger endGame() immediately so the
-     * winner is determined right away rather than waiting for the timer.
-     */
     private void checkLastPlayerStanding() {
         if (!gameStarted) return;
         long alive = clients.stream().filter(c -> c.getPlayerId() != -1).count();
