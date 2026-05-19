@@ -10,19 +10,19 @@ import java.util.Set;
 
 import app.Main;
 import app.game_hud.StatOverlay;
-import app.utils.UIUtils;
+import app.game_logic.BiggerSizePowerup;
 import app.game_logic.FreezeHazard;
 import app.game_logic.PickupEntity;
 import app.game_logic.ReverseControlsHazard;
 import app.game_logic.SlowingHazard;
-import app.game_logic.TerritoryManager;
 import app.game_logic.SpeedPowerup;
-import app.game_logic.BiggerSizePowerup;
-import app.game_logic.TransparentTrailPowerup;
+import app.game_logic.TerritoryManager;
 import app.game_logic.Timer;
 import app.game_logic.TrailManager;
+import app.game_logic.TransparentTrailPowerup;
 import app.network.GameClient;
 import app.network.NetworkMessage.PlayerState;
+import app.utils.UIUtils;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -31,7 +31,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
+
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -44,6 +44,11 @@ import javafx.scene.text.Font;
 
 public class GamePlayScreen {
 
+    // Font constants — loaded once, applied at construction, never re-set
+    private static final Font FONT_TIMER = Font.font(UIUtils.MAIN_FONT, 24);
+    private static final Font FONT_CHAT = Font.font(UIUtils.MAIN_FONT, 14);
+    private static final Font FONT_TINY = Font.font(UIUtils.MAIN_FONT, 13);
+
     // -----------------------------------------------------------------------
     // Fields
     // -----------------------------------------------------------------------
@@ -54,60 +59,40 @@ public class GamePlayScreen {
 
     private final TrailManager trailManager = new TrailManager();
     private final TerritoryManager territoryManager = new TerritoryManager();
-    /**
-     * Other players' trail managers — populated by multiplayer. Empty in
-     * single-player.
-     */
     private final List<TrailManager> enemyTrailManagers = new ArrayList<>();
 
-    /** Canvas for territory fill + trail (redrawn every frame). */
     private final Canvas overlayCanvas;
     private final GraphicsContext overlayGc;
 
-    /** Player visual */
     private ImageView playerSprite;
 
     // ---- Multiplayer networking ----
-    /** Non-null when running in multiplayer mode. */
     private GameClient gameClient;
-    /** This client's player ID (assigned by server). -1 in single-player. */
     private int myPlayerId = -1;
-    /**
-     * Canvases for remote players' territory + trails.
-     * One entry per remote player, keyed by their playerId.
-     */
-    private final java.util.Map<Integer, Canvas>       remoteOverlays  = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, ImageView>    remoteSprites   = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, TrailManager> remoteTrails    = new java.util.LinkedHashMap<>();
+
+    private final java.util.Map<Integer, Canvas> remoteOverlays = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, ImageView> remoteSprites = new java.util.LinkedHashMap<>();
+    private final java.util.Map<Integer, TrailManager> remoteTrails = new java.util.LinkedHashMap<>();
     private final java.util.Map<Integer, TerritoryManager> remoteTerritories = new java.util.LinkedHashMap<>();
-    private final java.util.Map<Integer, Color>        remoteColors    = new java.util.LinkedHashMap<>();
-    /** How many frames to skip between network sends (send every Nth frame). */
+    private final java.util.Map<Integer, Color> remoteColors = new java.util.LinkedHashMap<>();
     private static final int NET_SEND_INTERVAL = 3;
     private int netFrameCounter = 0;
 
-    /** Player world-space position */
     private double playerX = 0;
     private double playerY = 0;
-    private final double SPEED = 2.5;
+    private final double SPEED = 4.5;
 
-    /**
-     * Multiplier applied to SPEED. Modified by hazards (e.g. SlowingHazard = 0.70).
-     */
     private double speedMultiplier = 1.0;
-    /**
-     * Nanosecond timestamp when the current speed effect should expire (0 = no
-     * effect).
-     */
     private long speedEffectEndNanos = 0;
 
-    /** Current movement direction (unit vector) */
+    // Current movement direction
     Set<KeyCode> pressedKeys = new HashSet<>();
     private double dirX = 1;
     private double dirY = 0;
     private double lastDirX = 1;
     private double lastDirY = 0;
 
-    // ** for smoothness when using keyboard keys */
+    // Keyboard keys smoothness
     private double targetDirX = 1;
     private double targetDirY = 0;
     private final double TURN_SMOOTHNESS = 0.15;
@@ -118,16 +103,10 @@ public class GamePlayScreen {
 
     private InputMode activeInputMode = InputMode.KEYBOARD;
 
-    /** World radius */
     private final double WORLD_RADIUS = 1500;
 
-    /** Player dough color — derived from the randomly chosen dough sprite. */
     private final Color PLAYER_COLOR;
 
-    /**
-     * Maps each dough filename (without extension) to its representative color.
-     * Colors are picked to closely match the actual sprite tones.
-     */
     private static final Map<String, Color> DOUGH_COLORS = Map.of(
             "orange", Color.web("#FF7043"),
             "red", Color.web("#E53935"),
@@ -138,42 +117,49 @@ public class GamePlayScreen {
             "purple", Color.web("#8E24AA"),
             "indigo", Color.web("#3949AB"));
 
-    /** HUD labels */
-    private final Label territoryLabel;
-    private final ProgressBar powerUpBar;
     private Label timerLabel;
 
     private String myPlayerName = "You";
     private StatOverlay statOverlay;
     private final Map<Integer, Double> remoteTerritoryPercents = new java.util.LinkedHashMap<>();
-    private final Map<Integer, String> remotePlayerNames       = new java.util.LinkedHashMap<>();
+    private final Map<Integer, String> remotePlayerNames = new java.util.LinkedHashMap<>();
 
-    private VBox    chatBox;
-    private VBox    chatMessageArea;
+    private VBox chatBox;
+    private VBox chatMessageArea;
     private boolean chatExpanded = false;
+    private javafx.scene.control.ScrollPane chatScroll;
+    private javafx.scene.control.TextField chatInput;
 
-    /** Hex ownership counters (used by GameOverModal). */
     private int ownedHexCount = 0;
     private final int totalHexCount = 1000;
 
-    /** True while the player is outside their territory (trail is active). */
+    // tack active trail
     private boolean outsideTerritory = false;
 
-    /** True once any death condition has fired — prevents double-invocation. */
+    // ---- Performance: cached values to avoid per-frame recomputation ----
+    /** Cached territory area fraction — only recomputed when territory changes. */
+    private double cachedAreaFraction = 0.0;
+    /**
+     * Set to true when captureTerritory runs; cleared after fraction is
+     * recalculated.
+     */
+    private boolean territoryDirty = true;
+    /** Throttle leaderboard sort/rebuild — only update every N frames. */
+    private int leaderboardThrottleCounter = 0;
+    private static final int LEADERBOARD_UPDATE_INTERVAL = 10;
+    /** Cached screen dimensions — avoid getWidth()/getHeight() overhead. */
+    private double cachedScreenW = 0;
+    private double cachedScreenH = 0;
+
     private boolean isDead = false;
 
-    /**
-     * Active pickups on the map (hazards + power-ups). Despawned entries are
-     * removed each frame.
-     */
     private final List<PickupEntity> pickups = new ArrayList<>();
-    // Background and player sprite images — held as fields so D3D textures are never GC'd
     private Image bgImage;
     private Image playerSpriteImage;
+    /** Dough name chosen at game start — passed to GameOverModal for the sprite. */
+    private String chosenDough;
 
-    /** Sprite for H1 Rolling Pin hazard; null if the file is missing. */
     private Image rollingPinSprite;
-    /** Nanosecond timestamp of the last Rolling Pin spawn (0 = none yet). */
     private long lastHazardSpawnNanos = 0;
     /** How often to spawn a new Rolling Pin hazard (8 seconds). */
     private static final long HAZARD_SPAWN_INTERVAL_NANOS = 8_000_000_000L;
@@ -229,26 +215,14 @@ public class GamePlayScreen {
     // Constructor / Setup
     // -----------------------------------------------------------------------
 
-    /**
-     * Multiplayer constructor — spawns at server-assigned position with a
-     * fixed color, and sends position updates to the server each frame.
-     *
-     * @param mainApp    The main application.
-     * @param client     Already-connected {@link GameClient}.
-     * @param spawnX     World-space X assigned by the server.
-     * @param spawnY     World-space Y assigned by the server.
-     * @param colorHex   CSS color string (e.g. "#FF7043").
-     * @param myPlayerId This client's ID.
-     */
-    public GamePlayScreen(Main mainApp, GameClient client,
-                          double spawnX, double spawnY,
-                          String colorHex, int myPlayerId) {
-        this(mainApp); // Runs the full single-player setup first
+    public GamePlayScreen(Main mainApp, GameClient client, double spawnX, double spawnY, String colorHex,
+            int myPlayerId) {
+        this(mainApp, getDoughFromHex(colorHex)); // Runs the full setup with the correct dough color
 
         // Override defaults set by the single-player constructor
-        this.gameClient    = client;
-        this.myPlayerId    = myPlayerId;
-        this.myPlayerName  = client.getPlayerName();
+        this.gameClient = client;
+        this.myPlayerId = myPlayerId;
+        this.myPlayerName = client.getPlayerName();
 
         // Teleport to server-assigned spawn
         this.playerX = spawnX;
@@ -262,9 +236,11 @@ public class GamePlayScreen {
         territoryManager.clearTerritory();
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
-        // Register the GAME_STATE callback — runs on network thread, touch UI on FX thread
+        // Register the GAME_STATE callback — runs on network thread, touch UI on FX
+        // thread
         client.onGameState(states -> Platform.runLater(() -> applyRemoteStates(states)));
         client.onPlayerDied(deadId -> Platform.runLater(() -> removeRemotePlayer(deadId)));
+        client.onChat(msg -> Platform.runLater(() -> appendChatMessage(msg.playerName, msg.message, msg.colorHex)));
         client.onGameOver(results -> Platform.runLater(() -> {
             if (!isDead) {
                 isDead = true;
@@ -273,16 +249,29 @@ public class GamePlayScreen {
         }));
     }
 
-    /** Single-player constructor (original). */
-    public GamePlayScreen(Main mainApp) {
+    // Helper to map network hex colors back to sprite names
+    private static String getDoughFromHex(String hex) {
+        if (hex == null)
+            return "orange";
+        for (Map.Entry<String, Color> entry : DOUGH_COLORS.entrySet()) {
+            String colorHex = "#" + entry.getValue().toString().substring(2, 8).toUpperCase();
+            if (colorHex.equalsIgnoreCase(hex)) {
+                return entry.getKey();
+            }
+        }
+        return "orange";
+    }
+
+    // Single Player
+    public GamePlayScreen(Main mainApp, String doughOverride) {
         this.mainApp = mainApp;
 
         root = new Pane();
 
         // --- Background ---
-        File bgFile = new File("assets/images/GameplayBackground.jpg");
-        if (bgFile.exists()) {
-            bgImage = new Image(bgFile.toURI().toString());
+        // --- Background ---
+        bgImage = UIUtils.ImageCache.get("assets/images/GameplayBackground.jpg");
+        if (bgImage != null && !bgImage.isError()) {
             javafx.scene.layout.BackgroundImage background = new javafx.scene.layout.BackgroundImage(
                     bgImage,
                     javafx.scene.layout.BackgroundRepeat.NO_REPEAT,
@@ -322,14 +311,17 @@ public class GamePlayScreen {
         overlayGc = overlayCanvas.getGraphicsContext2D();
         world.getChildren().add(overlayCanvas);
 
-        // --- Player sprite: pick a random dough at each game start ---
-        String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
-        String chosenDough = doughNames[rng.nextInt(doughNames.length)];
+        // --- Player sprite ---
+        if (doughOverride != null) {
+            chosenDough = doughOverride;
+        } else {
+            String[] doughNames = { "orange", "red", "blue", "green", "yellow", "pink", "purple", "indigo" };
+            chosenDough = doughNames[rng.nextInt(doughNames.length)];
+        }
         PLAYER_COLOR = DOUGH_COLORS.getOrDefault(chosenDough, Color.web("#FF7043"));
 
-        File playerFile = new File("assets/images/PlayersDough/" + chosenDough + ".png");
-        if (playerFile.exists()) {
-            playerSpriteImage = new Image(playerFile.toURI().toString());
+        playerSpriteImage = UIUtils.ImageCache.get("assets/images/PlayersDough/" + chosenDough + ".png");
+        if (playerSpriteImage != null && !playerSpriteImage.isError()) {
             playerSprite = new ImageView(playerSpriteImage);
             playerSprite.setPreserveRatio(true);
             playerSprite.setSmooth(true);
@@ -340,48 +332,22 @@ public class GamePlayScreen {
             world.getChildren().add(playerSprite);
 
         // --- H1 Rolling Pin hazard sprite ---
-        File rpFile = new File("assets/images/hazard/RollingPin-Hazard.png");
-        if (rpFile.exists()) {
-            rollingPinSprite = new Image(rpFile.toURI().toString());
-        }
+        rollingPinSprite = UIUtils.ImageCache.get("assets/images/hazard/RollingPin-Hazard.png");
 
         // --- H2 Ice Spill hazard sprite ---
-        File iceFile = new File("assets/images/hazard/Ice-Hazard.png");
-        if (iceFile.exists()) {
-            iceSprite = new Image(iceFile.toURI().toString());
-        }
+        iceSprite = UIUtils.ImageCache.get("assets/images/hazard/Ice-Hazard.png");
 
-        File reFile = new File("assets/images/hazard/RottenEgg-Hazard.png");
-        if (reFile.exists()) {
-            rottenEggSprite = new Image(reFile.toURI().toString());
-        }
+        rottenEggSprite = UIUtils.ImageCache.get("assets/images/hazard/RottenEgg-Hazard.png");
 
         // --- Powerup sprites ---
-        File oilFile = new File("assets/images/powerup/Oil-Powerup.png");
-        if (oilFile.exists()) {
-            oilSprite = new Image(oilFile.toURI().toString());
-        }
-        File doughPFile = new File("assets/images/powerup/Dough-Powerup.png");
-        if (doughPFile.exists()) {
-            doughPowerupSprite = new Image(doughPFile.toURI().toString());
-        }
-        File flourFile = new File("assets/images/powerup/Flour-Powerup.png");
-        if (flourFile.exists()) {
-            flourSprite = new Image(flourFile.toURI().toString());
-        }
+        oilSprite = UIUtils.ImageCache.get("assets/images/powerup/Oil-Powerup.png");
+        doughPowerupSprite = UIUtils.ImageCache.get("assets/images/powerup/Dough-Powerup.png");
+        flourSprite = UIUtils.ImageCache.get("assets/images/powerup/Flour-Powerup.png");
 
         // --- Starting territory centred on spawn ---
         territoryManager.initStartingTerritory(playerX, playerY, 70);
 
         // --- HUD ---
-        territoryLabel = new Label("Territory: 0.0%");
-        territoryLabel.setStyle(
-                "-fx-text-fill: white; -fx-font-size: 22px; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
-        root.getChildren().add(territoryLabel);
-
-        powerUpBar = new ProgressBar(0);
-        powerUpBar.setPrefWidth(300);
-        root.getChildren().add(powerUpBar);
 
         // --- Leaderboard overlay ---
         statOverlay = new StatOverlay();
@@ -389,19 +355,25 @@ public class GamePlayScreen {
 
         // --- Timer HUD (from develop branch) ---
         timerLabel = new Label("Time: 00:00");
-        timerLabel.setFont(Font.font(UIUtils.MAIN_FONT, 24));
-        timerLabel.setStyle("-fx-text-fill: white; -fx-effect: dropshadow(gaussian,black,4,0.6,0,0);");
+        timerLabel.setFont(FONT_TIMER);
+        timerLabel.setStyle("-fx-text-fill: white; -fx-background-color: rgba(0,0,0,0.5); -fx-padding: 4 12; -fx-background-radius: 8;");
         root.getChildren().add(timerLabel);
 
         gameTimer = new Timer(
-                40, // seconds (set to desired game duration)
+                180, // seconds (set to desired game duration)
                 () -> javafx.application.Platform.runLater(
                         () -> timerLabel.setText("Time: " + gameTimer.getFormattedTime())),
                 () -> {
                     System.out.println("Timer reached zero!");
+                    // Issue 2: In multiplayer the server owns the timer and will
+                    // broadcast GAME_OVER — the client-side timer must NOT also
+                    // trigger showGameOver() or the two will conflict.
+                    if (gameClient != null)
+                        return;
                     if (!isDead) {
                         isDead = true;
-                        showGameOver();
+                        double pct = Math.max(0.2, cachedAreaFraction * 100.0);
+                        showGameOver(pct);
                     }
                 });
         gameTimer.start();
@@ -411,14 +383,11 @@ public class GamePlayScreen {
         chatMessageArea.setPadding(new Insets(6, 8, 6, 8));
 
         Label chatPlaceholder = new Label("No messages yet");
-        chatPlaceholder.setFont(Font.font(UIUtils.MAIN_FONT, 13));
+        chatPlaceholder.setFont(FONT_TINY);
         chatPlaceholder.setStyle("-fx-text-fill: #666666;");
         chatMessageArea.getChildren().add(chatPlaceholder);
 
-        // TODO: wire in multiplayer messages here —
-        //   add Label entries to chatMessageArea when the network layer delivers chat events
-
-        ScrollPane chatScroll = new ScrollPane(chatMessageArea);
+        chatScroll = new ScrollPane(chatMessageArea);
         chatScroll.setPrefWidth(256);
         chatScroll.setPrefHeight(180);
         chatScroll.setFitToWidth(true);
@@ -429,26 +398,71 @@ public class GamePlayScreen {
         chatScroll.setManaged(false);
 
         Button chatToggle = new Button("Chat ▲");
-        chatToggle.setFont(Font.font(UIUtils.MAIN_FONT, 14));
+        chatToggle.setFont(FONT_CHAT);
         chatToggle.setStyle(
-            "-fx-background-color: rgba(0,0,0,0.65);" +
-            "-fx-text-fill: #f0d090;" +
-            "-fx-background-radius: 6;" +
-            "-fx-padding: 4 12;" +
-            "-fx-cursor: hand;");
+                "-fx-background-color: rgba(0,0,0,0.65);" +
+                        "-fx-text-fill: #f0d090;" +
+                        "-fx-background-radius: 6;" +
+                        "-fx-padding: 4 12;" +
+                        "-fx-cursor: hand;");
         chatToggle.setMaxWidth(Double.MAX_VALUE);
+        chatInput = new javafx.scene.control.TextField();
+        chatInput.setPromptText("Type a message...");
+        chatInput.setFont(FONT_CHAT);
+        chatInput.setStyle("-fx-background-color: rgba(255,255,255,0.9); -fx-text-fill: #333333; -fx-padding: 4 8; -fx-background-radius: 4;");
+        
+        Button chatSendBtn = new Button("Send");
+        chatSendBtn.setFont(FONT_CHAT);
+        chatSendBtn.setStyle("-fx-background-color: #f0d090; -fx-text-fill: #333333; -fx-padding: 4 8; -fx-background-radius: 4; -fx-cursor: hand;");
+        
+        Runnable sendChatAction = () -> {
+            String text = chatInput.getText().trim();
+            if (!text.isEmpty()) {
+                if (text.length() > 100) text = text.substring(0, 100);
+                if (gameClient != null) {
+                    final String msgToSend = text;
+                    new Thread(() -> gameClient.sendChat(msgToSend)).start();
+                } else {
+                    // Local echo for single player testing
+                    appendChatMessage(myPlayerName, text, PLAYER_COLOR.toString().replace("0x", "#"));
+                }
+                chatInput.clear();
+            }
+            root.requestFocus();
+        };
+        
+        chatSendBtn.setOnAction(e -> sendChatAction.run());
+        chatInput.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                sendChatAction.run();
+                e.consume();
+            }
+        });
+
+        javafx.scene.layout.HBox chatInputBox = new javafx.scene.layout.HBox(4, chatInput, chatSendBtn);
+        chatInputBox.setPadding(new Insets(4));
+        chatInputBox.setVisible(false);
+        chatInputBox.setManaged(false);
+        javafx.scene.layout.HBox.setHgrow(chatInput, javafx.scene.layout.Priority.ALWAYS);
+
         chatToggle.setOnAction(e -> {
             chatExpanded = !chatExpanded;
             chatScroll.setVisible(chatExpanded);
             chatScroll.setManaged(chatExpanded);
+            chatInputBox.setVisible(chatExpanded);
+            chatInputBox.setManaged(chatExpanded);
             chatToggle.setText(chatExpanded ? "Chat ▼" : "Chat ▲");
-            root.requestFocus();  // return focus to game after button click
+            if (chatExpanded) {
+                chatInput.requestFocus();
+            } else {
+                root.requestFocus(); // return focus to game after button click
+            }
         });
 
-        chatBox = new VBox(0, chatScroll, chatToggle);
+        chatBox = new VBox(0, chatScroll, chatInputBox, chatToggle);
         chatBox.setStyle(
-            "-fx-background-color: rgba(0,0,0,0.55);" +
-            "-fx-background-radius: 10;");
+                "-fx-background-color: rgba(0,0,0,0.55);" +
+                        "-fx-background-radius: 10;");
         chatBox.setPrefWidth(260);
         root.getChildren().add(chatBox);
 
@@ -470,6 +484,8 @@ public class GamePlayScreen {
 
         // key handling
         root.setOnKeyPressed(e -> {
+            if (chatInput != null && chatInput.isFocused()) return;
+
             activeInputMode = InputMode.KEYBOARD;
             pressedKeys.add(e.getCode());
             updateDirection();
@@ -480,6 +496,8 @@ public class GamePlayScreen {
         });
 
         root.setOnKeyReleased(e -> {
+            if (chatInput != null && chatInput.isFocused()) return;
+
             pressedKeys.remove(e.getCode());
             updateDirection();
         });
@@ -503,6 +521,8 @@ public class GamePlayScreen {
         double screenH = root.getHeight();
         if (screenW == 0)
             return;
+        cachedScreenW = screenW;
+        cachedScreenH = screenH;
 
         // --- Expire timed effects ---
         if (speedMultiplier != 1.0 && now >= speedEffectEndNanos) {
@@ -619,6 +639,7 @@ public class GamePlayScreen {
             List<Point2D> trail = trailManager.getTrailPoints();
             territoryManager.captureTerritory(trail);
             trailManager.clear();
+            territoryDirty = true; // trigger area fraction recalculation
         }
 
         // --- Self-collision check (only while trail is active) ---
@@ -641,9 +662,17 @@ public class GamePlayScreen {
             playerSprite.setY(playerY - 50);
         }
 
-        // --- Render overlay (territory + trail) ---
-        overlayGc.clearRect(0, 0, overlayCanvas.getWidth(), overlayCanvas.getHeight());
+        // --- Render overlay (territory + trail) — viewport-clipped clear ---
+        // Only clear the visible portion of the 3000x3000 canvas (huge perf win).
+        double vpX = WORLD_RADIUS + playerX - screenW / 2 - 2;
+        double vpY = WORLD_RADIUS + playerY - screenH / 2 - 2;
+        double vpW = screenW + 4;
+        double vpH = screenH + 4;
+        overlayGc.clearRect(vpX, vpY, vpW, vpH);
         overlayGc.save();
+        overlayGc.beginPath();
+        overlayGc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
+        overlayGc.clip();
         overlayGc.translate(WORLD_RADIUS, WORLD_RADIUS);
         territoryManager.drawTerritory(overlayGc, PLAYER_COLOR);
         trailManager.draw(overlayGc, PLAYER_COLOR);
@@ -656,29 +685,31 @@ public class GamePlayScreen {
         world.setTranslateX((screenW / 2) - playerX);
         world.setTranslateY((screenH / 2) - playerY);
 
-        // --- HUD ---
-        double areaFraction = territoryManager.getApproximateAreaFraction(Math.PI * WORLD_RADIUS * WORLD_RADIUS);
-        ownedHexCount = (int) (areaFraction * totalHexCount);
-        territoryLabel.setText(String.format("Territory: %.1f%%", areaFraction * 100));
-        territoryLabel.setLayoutX(screenW - 230);
-        territoryLabel.setLayoutY(20);
-
-        // --- Leaderboard update (every tick) ---
-        List<StatOverlay.PlayerEntry> leaderboard = new ArrayList<>();
-        leaderboard.add(new StatOverlay.PlayerEntry(myPlayerName, PLAYER_COLOR, areaFraction * 100));
-        for (Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
-            double pct  = remoteTerritoryPercents.getOrDefault(entry.getKey(), 0.0);
-            String name = remotePlayerNames.getOrDefault(entry.getKey(), "Player " + entry.getKey());
-            leaderboard.add(new StatOverlay.PlayerEntry(name, entry.getValue(), pct));
+        // --- HUD: use cached area fraction (only recomputed after capture) ---
+        if (territoryDirty) {
+            cachedAreaFraction = territoryManager.getApproximateAreaFraction(Math.PI * WORLD_RADIUS * WORLD_RADIUS);
+            ownedHexCount = (int) (cachedAreaFraction * totalHexCount);
+            territoryDirty = false;
         }
-        leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
-        statOverlay.update(leaderboard);
+
+        // --- Leaderboard update: throttled to every LEADERBOARD_UPDATE_INTERVAL frames
+        // ---
+        leaderboardThrottleCounter++;
+        if (leaderboardThrottleCounter >= LEADERBOARD_UPDATE_INTERVAL) {
+            leaderboardThrottleCounter = 0;
+            List<StatOverlay.PlayerEntry> leaderboard = new ArrayList<>();
+            leaderboard.add(new StatOverlay.PlayerEntry(myPlayerName, PLAYER_COLOR, cachedAreaFraction * 100));
+            for (Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
+                double pct = remoteTerritoryPercents.getOrDefault(entry.getKey(), 0.0);
+                String name = remotePlayerNames.getOrDefault(entry.getKey(), "Player " + entry.getKey());
+                leaderboard.add(new StatOverlay.PlayerEntry(name, entry.getValue(), pct));
+            }
+            leaderboard.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+            statOverlay.update(leaderboard);
+        }
 
         timerLabel.setLayoutX((screenW - timerLabel.getWidth()) / 2);
         timerLabel.setLayoutY(14);
-
-        powerUpBar.setLayoutX((screenW / 2) - 150);
-        powerUpBar.setLayoutY(screenH - 50);
 
         chatBox.setLayoutX(screenW - chatBox.getPrefWidth() - 14);
         chatBox.setLayoutY(screenH - chatBox.getHeight() - 14);
@@ -695,11 +726,11 @@ public class GamePlayScreen {
                     List<Point2D> trailPts = trailManager.getTrailPoints();
                     packed = new double[trailPts.size() * 2];
                     for (int i = 0; i < trailPts.size(); i++) {
-                        packed[i * 2]     = trailPts.get(i).getX();
+                        packed[i * 2] = trailPts.get(i).getX();
                         packed[i * 2 + 1] = trailPts.get(i).getY();
                     }
                 }
-                gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, areaFraction * 100);
+                gameClient.sendPositionUpdate(playerX, playerY, dirX, dirY, packed, cachedAreaFraction * 100);
             }
         }
     }
@@ -712,15 +743,25 @@ public class GamePlayScreen {
         PickupEntity create(double x, double y, Image sprite);
     }
 
+    private boolean isFarEnoughFromPickups(double hx, double hy) {
+        for (PickupEntity p : pickups) {
+            if (p.isActive() && Math.hypot(p.getX() - hx, p.getY() - hy) < 200.0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void spawnPickup(Image sprite, PickupFactory factory) {
-        if (sprite == null) return;
+        if (sprite == null)
+            return;
         double maxR = WORLD_RADIUS * 0.85;
-        for (int attempt = 0; attempt < 20; attempt++) {
+        for (int attempt = 0; attempt < 50; attempt++) {
             double angle = rng.nextDouble() * 2 * Math.PI;
             double r = rng.nextDouble() * maxR;
             double hx = Math.cos(angle) * r;
             double hy = Math.sin(angle) * r;
-            if (!territoryManager.isInsideTerritory(hx, hy)) {
+            if (!territoryManager.isInsideTerritory(hx, hy) && isFarEnoughFromPickups(hx, hy)) {
                 pickups.add(factory.create(hx, hy, sprite));
                 return;
             }
@@ -736,29 +777,31 @@ public class GamePlayScreen {
         if (rollingPinSprite == null)
             return;
         double maxR = WORLD_RADIUS * 0.85;
-        for (int attempt = 0; attempt < 20; attempt++) {
+        for (int attempt = 0; attempt < 50; attempt++) {
             double angle = rng.nextDouble() * 2 * Math.PI;
             double r = rng.nextDouble() * maxR;
             double hx = Math.cos(angle) * r;
             double hy = Math.sin(angle) * r;
-            if (!territoryManager.isInsideTerritory(hx, hy)) {
+            if (!territoryManager.isInsideTerritory(hx, hy) && isFarEnoughFromPickups(hx, hy)) {
                 pickups.add(new SlowingHazard(hx, hy, rollingPinSprite));
                 return;
             }
         }
     }
 
-    /** Spawns a Rotten Egg (H3) hazard at a random arena position outside territory. */
+    /**
+     * Spawns a Rotten Egg (H3) hazard at a random arena position outside territory.
+     */
     private void spawnRottenEggHazard() {
         if (rottenEggSprite == null)
             return;
         double maxR = WORLD_RADIUS * 0.85;
-        for (int attempt = 0; attempt < 20; attempt++) {
+        for (int attempt = 0; attempt < 50; attempt++) {
             double angle = rng.nextDouble() * 2 * Math.PI;
             double r = rng.nextDouble() * maxR;
             double hx = Math.cos(angle) * r;
             double hy = Math.sin(angle) * r;
-            if (!territoryManager.isInsideTerritory(hx, hy)) {
+            if (!territoryManager.isInsideTerritory(hx, hy) && isFarEnoughFromPickups(hx, hy)) {
                 pickups.add(new ReverseControlsHazard(hx, hy, rottenEggSprite));
                 return;
             }
@@ -772,12 +815,12 @@ public class GamePlayScreen {
         if (iceSprite == null)
             return;
         double maxR = WORLD_RADIUS * 0.85;
-        for (int attempt = 0; attempt < 20; attempt++) {
+        for (int attempt = 0; attempt < 50; attempt++) {
             double angle = rng.nextDouble() * 2 * Math.PI;
             double r = rng.nextDouble() * maxR;
             double hx = Math.cos(angle) * r;
             double hy = Math.sin(angle) * r;
-            if (!territoryManager.isInsideTerritory(hx, hy)) {
+            if (!territoryManager.isInsideTerritory(hx, hy) && isFarEnoughFromPickups(hx, hy)) {
                 pickups.add(new FreezeHazard(hx, hy, iceSprite));
                 return;
             }
@@ -791,6 +834,9 @@ public class GamePlayScreen {
     private void handleDeath() {
         if (isDead)
             return;
+            
+        double finalTerritoryPct = Math.max(0.2, cachedAreaFraction * 100.0);
+        
         isDead = true;
         trailManager.clear();
         territoryManager.clearTerritory();
@@ -803,18 +849,52 @@ public class GamePlayScreen {
         biggerSizeEndNanos = 0;
         isTrailTransparent = false;
         transparentEndNanos = 0;
-        showGameOver();
+
+        if (gameClient != null) {
+            // Issue 1: Multiplayer — show game-over immediately for this (dead) player
+            // while others may still be playing. Build a snapshot of known results.
+            java.util.List<app.network.NetworkMessage.GameResult> snapshot = new java.util.ArrayList<>();
+
+            // Local player just died — use captured territory
+            String myHex = "#" + PLAYER_COLOR.toString().substring(2, 8).toUpperCase();
+            snapshot.add(new app.network.NetworkMessage.GameResult(
+                    myPlayerId, myPlayerName, myHex, finalTerritoryPct, 0));
+
+            for (java.util.Map.Entry<Integer, Color> entry : remoteColors.entrySet()) {
+                int id = entry.getKey();
+                Color col = entry.getValue();
+                double pct = remoteTerritoryPercents.getOrDefault(id, 0.0);
+                String name = remotePlayerNames.getOrDefault(id, "Player " + id);
+                String hex = "#" + col.toString().substring(2, 8).toUpperCase();
+                snapshot.add(new app.network.NetworkMessage.GameResult(id, name, hex, pct, 0));
+            }
+
+            // Sort descending by territory %, assign ranks
+            snapshot.sort((a, b) -> Double.compare(b.territoryPercent, a.territoryPercent));
+            for (int i = 0; i < snapshot.size(); i++)
+                snapshot.get(i).rank = i + 1;
+
+            // Disconnect so the server detects this player left and triggers
+            // checkLastPlayerStanding() for the remaining players.
+            gameClient.disconnect();
+
+            showMultiplayerGameOver(snapshot);
+        } else {
+            showGameOver(finalTerritoryPct);
+        }
     }
 
     // -----------------------------------------------------------------------
     // Game Over
     // -----------------------------------------------------------------------
 
-    private void showGameOver() {
+    private void showGameOver(double finalTerritoryPct) {
         gameTimer.stop();
         gameLoop.stop();
 
-        GameOverModal modal = new GameOverModal(mainApp, ownedHexCount, totalHexCount);
+
+        String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
+        GameOverModal modal = new GameOverModal(mainApp, finalTerritoryPct, spritePath);
         modal.show();
     }
 
@@ -856,6 +936,11 @@ public class GamePlayScreen {
     // -----------------------------------------------------------------------
 
     private void drawHexGrid(GraphicsContext gc) {
+        gc.save();
+        gc.beginPath();
+        gc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
+        gc.clip();
+
         gc.setStroke(Color.web("#e0d5ba"));
         gc.setLineWidth(1.0);
 
@@ -884,6 +969,7 @@ public class GamePlayScreen {
                 }
             }
         }
+        gc.restore();
     }
 
     // -----------------------------------------------------------------------
@@ -896,14 +982,15 @@ public class GamePlayScreen {
      */
     private void applyRemoteStates(java.util.List<PlayerState> states) {
         for (PlayerState state : states) {
-            if (state.playerId == myPlayerId) continue; // skip self
+            if (state.playerId == myPlayerId)
+                continue; // skip self
             if (state.isDead) {
                 removeRemotePlayer(state.playerId);
                 continue;
             }
 
             Color color = remoteColors.computeIfAbsent(state.playerId,
-                id -> Color.web(state.colorHex));
+                    id -> Color.web(state.colorHex));
 
             remoteTerritoryPercents.put(state.playerId, state.territoryPercent);
             if (state.playerName != null && !state.playerName.isEmpty()) {
@@ -922,7 +1009,7 @@ public class GamePlayScreen {
 
             // ── Trail ───────────────────────────────────────────────────
             TrailManager trail = remoteTrails.computeIfAbsent(
-                state.playerId, id -> new TrailManager());
+                    state.playerId, id -> new TrailManager());
 
             // Sync trail points from packed array
             trail.clear();
@@ -944,9 +1031,17 @@ public class GamePlayScreen {
             }
 
             // Draw remote trail from packed points
+            // Viewport-clipped clear: only wipe the pixels currently on screen.
             GraphicsContext gc = overlay.getGraphicsContext2D();
-            gc.clearRect(0, 0, overlay.getWidth(), overlay.getHeight());
+            double rvpX = WORLD_RADIUS + playerX - cachedScreenW / 2 - 2;
+            double rvpY = WORLD_RADIUS + playerY - cachedScreenH / 2 - 2;
+            double rvpW = cachedScreenW + 4;
+            double rvpH = cachedScreenH + 4;
+            gc.clearRect(rvpX, rvpY, rvpW, rvpH);
             gc.save();
+            gc.beginPath();
+            gc.arc(WORLD_RADIUS, WORLD_RADIUS, WORLD_RADIUS - 5, WORLD_RADIUS - 5, 0, 360);
+            gc.clip();
             gc.translate(WORLD_RADIUS, WORLD_RADIUS);
             drawRemoteTrail(gc, state.trailPoints, color);
             gc.restore();
@@ -963,7 +1058,8 @@ public class GamePlayScreen {
 
     /** Draws a remote player's trail from the server's packed double[] array. */
     private void drawRemoteTrail(GraphicsContext gc, double[] packed, Color color) {
-        if (packed == null || packed.length < 4) return;
+        if (packed == null || packed.length < 4)
+            return;
         gc.save();
         gc.setLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
         gc.setLineJoin(javafx.scene.shape.StrokeLineJoin.ROUND);
@@ -979,31 +1075,39 @@ public class GamePlayScreen {
         gc.restore();
     }
 
-    /** True if the local player's head is within collision distance of an enemy trail. */
+    /**
+     * True if the local player's head is within collision distance of an enemy
+     * trail.
+     */
     private boolean checkEnemyTrailCollision(double px, double py, double[] packed) {
         final double RADIUS = 14.0;
         Point2D head = new Point2D(px, py);
         for (int i = 0; i < packed.length - 3; i += 2) {
-            Point2D a = new Point2D(packed[i],     packed[i + 1]);
+            Point2D a = new Point2D(packed[i], packed[i + 1]);
             Point2D b = new Point2D(packed[i + 2], packed[i + 3]);
             double dx = b.getX() - a.getX(), dy = b.getY() - a.getY();
             double lenSq = dx * dx + dy * dy;
-            double t = lenSq == 0 ? 0 : Math.max(0, Math.min(1,
-                ((px - a.getX()) * dx + (py - a.getY()) * dy) / lenSq));
+            double t = lenSq == 0 ? 0
+                    : Math.max(0, Math.min(1,
+                            ((px - a.getX()) * dx + (py - a.getY()) * dy) / lenSq));
             Point2D proj = new Point2D(a.getX() + t * dx, a.getY() + t * dy);
-            if (head.distance(proj) < RADIUS) return true;
+            if (head.distance(proj) < RADIUS)
+                return true;
         }
         return false;
     }
 
-    /** Creates an ImageView for a remote player sprite using the color-matched dough image. */
+    /**
+     * Creates an ImageView for a remote player sprite using the color-matched dough
+     * image.
+     */
     private ImageView createRemoteSprite(String colorHex) {
-        String[] names  = { "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo" };
-        String dough    = names[Math.abs(colorHex.hashCode()) % names.length];
-        File   imgFile  = new File("assets/images/PlayersDough/" + dough + ".png");
-        ImageView iv    = new ImageView();
+        String[] names = { "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo" };
+        String dough = names[Math.abs(colorHex.hashCode()) % names.length];
+        File imgFile = new File("assets/images/PlayersDough/" + dough + ".png");
+        ImageView iv = new ImageView();
         if (imgFile.exists()) {
-            iv.setImage(new Image(imgFile.toURI().toString()));
+            iv.setImage(UIUtils.ImageCache.get("assets/images/PlayersDough/" + dough + ".png"));
         }
         iv.setFitWidth(100);
         iv.setFitHeight(100);
@@ -1012,12 +1116,52 @@ public class GamePlayScreen {
     }
 
     /** Removes all visual elements for a player that has died or disconnected. */
+    private void appendChatMessage(String name, String text, String colorHex) {
+        if (chatMessageArea.getChildren().size() > 0 && 
+            chatMessageArea.getChildren().get(0) instanceof Label &&
+            ((Label) chatMessageArea.getChildren().get(0)).getText().equals("No messages yet")) {
+            chatMessageArea.getChildren().clear();
+        }
+
+        javafx.scene.text.Text nameText = new javafx.scene.text.Text("[" + name + "]: ");
+        nameText.setFont(FONT_CHAT);
+        try {
+            if (colorHex != null && !colorHex.startsWith("#")) colorHex = "#" + colorHex;
+            nameText.setFill(Color.web(colorHex != null ? colorHex : "#FFFFFF"));
+        } catch (Exception e) {
+            nameText.setFill(Color.WHITE);
+        }
+
+        javafx.scene.text.Text msgText = new javafx.scene.text.Text(text);
+        msgText.setFont(FONT_CHAT);
+        msgText.setFill(Color.WHITE);
+
+        javafx.scene.text.TextFlow messageFlow = new javafx.scene.text.TextFlow(nameText, msgText);
+        messageFlow.setPadding(new Insets(2, 0, 2, 0));
+
+        chatMessageArea.getChildren().add(messageFlow);
+
+        if (chatMessageArea.getChildren().size() > 50) {
+            chatMessageArea.getChildren().remove(0);
+        }
+
+        // Auto-scroll to bottom
+        Platform.runLater(() -> chatScroll.setVvalue(1.0));
+    }
+
+    /**
+     * Called when the server notifies us that a remote player died.
+     * After removing them, if we are the only player left alive we trigger
+     * an immediate game-over (last player standing wins).
+     */
     private void removeRemotePlayer(int playerId) {
         ImageView sprite = remoteSprites.remove(playerId);
-        if (sprite != null) world.getChildren().remove(sprite);
+        if (sprite != null)
+            world.getChildren().remove(sprite);
 
         Canvas overlay = remoteOverlays.remove(playerId);
-        if (overlay != null) world.getChildren().remove(overlay);
+        if (overlay != null)
+            world.getChildren().remove(overlay);
 
         remoteTrails.remove(playerId);
         remoteColors.remove(playerId);
@@ -1026,24 +1170,29 @@ public class GamePlayScreen {
     }
 
     /**
-     * Shows the game-over screen with the server-provided leaderboard.
+     * Shows the game-over screen with the server-provided (or locally-built)
+     * leaderboard.
+     * Safe to call after gameClient.disconnect() has already been invoked.
      * Used in multiplayer mode instead of the single-player GameOverModal.
      */
     private void showMultiplayerGameOver(java.util.List<app.network.NetworkMessage.GameResult> results) {
         gameTimer.stop();
         gameLoop.stop();
-        if (gameClient != null) gameClient.disconnect();
+        // Disconnect only if still connected (handleDeath may have already done this)
+        if (gameClient != null && gameClient.isConnected())
+            gameClient.disconnect();
 
-        // Re-use GameOverModal but pass the top player's score for now.
-        // You can extend GameOverModal later to show the full leaderboard.
-        int myScore = 0;
-        for (app.network.NetworkMessage.GameResult r : results) {
-            if (r.playerId == myPlayerId) {
-                myScore = (int) r.territoryPercent;
-                break;
-            }
-        }
-        GameOverModal modal = new GameOverModal(mainApp, myScore, 100);
+        // Determine how the game ended:
+        // LAST_STANDING if exactly one player has territory > 0, meaning all others
+        // have died (including the local player who just died at 0%).
+        long withTerritory = results.stream().filter(r -> r.territoryPercent > 0).count();
+        boolean lastStanding = (withTerritory <= 1);
+        GameOverModal.EndReason reason = lastStanding
+                ? GameOverModal.EndReason.LAST_STANDING
+                : GameOverModal.EndReason.TIMER;
+
+        String spritePath = "assets/images/PlayersDough/" + chosenDough + ".png";
+        GameOverModal modal = new GameOverModal(mainApp, results, myPlayerId, spritePath, reason);
         modal.show();
     }
 

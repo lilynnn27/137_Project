@@ -6,7 +6,6 @@ import javafx.scene.image.Image;
  * H1 — Rolling Pin Slowing Hazard
  *
  * Slows the contacting player's movement by 30% for 1.5 seconds.
- * Sprite: assets/images/hazard/RollingPin-Hazard.png
  *
  * Effect application is handled by GamePlayScreen, which reads
  * SPEED_MULTIPLIER and getEffectDurationSeconds() after despawn.

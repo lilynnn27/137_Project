@@ -1,14 +1,14 @@
 package app;
 
 import app.network.GameClient;
+import app.screens.DevelopersPage;
 import app.screens.GamePlayScreen;
 import app.screens.LandingPageScreen;
 import app.screens.MultiplayerScreen;
+import app.screens.RulesPage;
 import app.screens.SinglePlayerScreen;
 import app.utils.UIUtils;
 import javafx.application.Application;
-import javafx.scene.effect.ColorAdjust;
-import javafx.scene.effect.GaussianBlur;
 import javafx.stage.Stage;
 
 public class Main extends Application {
@@ -17,9 +17,11 @@ public class Main extends Application {
     private javafx.scene.Scene mainScene;
 
     // Screen instances
-    private LandingPageScreen  landingPage;
+    private LandingPageScreen landingPage;
     private SinglePlayerScreen singlePlayer;
-    private MultiplayerScreen  multiplayer;
+    private MultiplayerScreen multiplayer;
+    private DevelopersPage developersPage;
+    private RulesPage rulesPage;
 
     @Override
     public void start(Stage primaryStage) {
@@ -32,8 +34,14 @@ public class Main extends Application {
         landingPage  = new LandingPageScreen(this);
         singlePlayer = new SinglePlayerScreen(this);
         multiplayer  = new MultiplayerScreen(this);
+        developersPage = new DevelopersPage(this);
+        rulesPage = new RulesPage(this);
 
         mainScene = new javafx.scene.Scene(new javafx.scene.layout.Pane(), 1024, 768);
+        java.net.URL cssUrl = getClass().getResource("/assets/css/app.css");
+        if (cssUrl != null) {
+            mainScene.getStylesheets().add(cssUrl.toExternalForm());
+        }
         window.setScene(mainScene);
 
         showLandingPage();
@@ -58,25 +66,22 @@ public class Main extends Application {
         mainScene.setRoot(multiplayer.getRoot());
     }
 
-    /** Launches the single-player game (random spawn, random color). */
-    public void showGamePlay() {
-        GamePlayScreen screen = new GamePlayScreen(this);
+    /** Launches the single-player game (random spawn, chosen color). */
+    public void showGamePlay(String chosenDough) {
+        GamePlayScreen screen = new GamePlayScreen(this, chosenDough);
         mainScene.setRoot(screen.getRoot());
         screen.getRoot().requestFocus();
     }
 
-    /**
-     * Launches the multiplayer game screen for this client.
-     *
-     * @param client     The connected {@link GameClient} (already joined).
-     * @param spawnX     World-space spawn X assigned by the server.
-     * @param spawnY     World-space spawn Y assigned by the server.
-     * @param colorHex   CSS hex color assigned by the server (e.g. "#FF7043").
-     * @param myPlayerId This client's player ID.
-     */
-    public void showMultiplayerGame(GameClient client,
-                                    double spawnX, double spawnY,
-                                    String colorHex, int myPlayerId) {
+    public void showDevelopers() {
+        mainScene.setRoot(developersPage.getRoot());
+    }
+
+    public void showRules() {
+        mainScene.setRoot(rulesPage.getRoot());
+    }
+
+    public void showMultiplayerGame(GameClient client, double spawnX, double spawnY, String colorHex, int myPlayerId) {
         GamePlayScreen screen = new GamePlayScreen(this, client, spawnX, spawnY, colorHex, myPlayerId);
         mainScene.setRoot(screen.getRoot());
         screen.getRoot().requestFocus();
@@ -89,6 +94,9 @@ public class Main extends Application {
     }
 
     public void setBackgroundBlur(boolean apply) {
+        // Disabled because applying a GaussianBlur effect to the 3000x3000 GamePlayScreen root 
+        // requires a massive RTTexture allocation which crashes Direct3D with an out-of-VRAM NPE.
+        /*
         if (apply) {
             GaussianBlur blur = new GaussianBlur(15);
             ColorAdjust  darken = new ColorAdjust();
@@ -98,6 +106,7 @@ public class Main extends Application {
         } else {
             window.getScene().getRoot().setEffect(null);
         }
+        */
     }
 
     public void exitGame() {

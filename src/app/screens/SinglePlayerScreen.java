@@ -23,28 +23,42 @@ public class SinglePlayerScreen {
     private static final String GOLD   = "#b89664";
     private static final String MUTED  = "#888888";
 
+    // Font constants — loaded once, applied at construction, never re-set
+    private static final Font FONT_TITLE  = Font.font(UIUtils.MAIN_FONT, 38);
+    private static final Font FONT_HEADER = Font.font(UIUtils.MAIN_FONT, 26);
+    private static final Font FONT_BUTTON = Font.font(UIUtils.MAIN_FONT, 20);
+    private static final Font FONT_SMALL  = Font.font(UIUtils.MAIN_FONT, 16);
+
     private static final String BTN_PRI_N =
         "-fx-background-color:" + ORANGE + ";-fx-text-fill:" + CREAM + ";" +
         "-fx-border-color:" + ORANGE + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
     private static final String BTN_PRI_H =
         "-fx-background-color:" + CREAM + ";-fx-text-fill:" + BROWN + ";" +
         "-fx-border-color:" + ORANGE + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
     private static final String BTN_SEC_N =
         "-fx-background-color:transparent;-fx-text-fill:" + CREAM + ";" +
         "-fx-border-color:" + CREAM + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
     private static final String BTN_SEC_H =
         "-fx-background-color:" + CREAM + ";-fx-text-fill:" + BROWN + ";" +
         "-fx-border-color:" + CREAM + ";-fx-border-width:2px;" +
-        "-fx-padding:12 36;-fx-cursor:hand;";
+        "-fx-padding:12 36;-fx-cursor:hand;" +
+        "-fx-font-family:'" + UIUtils.MAIN_FONT + "';-fx-font-size:20px;-fx-font-weight:bold;";
 
     private final StackPane root;
 
     // Image fields — held here so they are never GC'd while the screen is displayed
     private Image bgImage;
-    private final Image[] doughImages   = new Image[4]; // orange, blue, green, red
+    private static final String[] DOUGH_FILES = {
+            "orange", "blue", "green", "red", "yellow", "pink", "purple", "indigo"
+    };
+    private final Image[] doughImages   = new Image[DOUGH_FILES.length];
+    private int currentDoughIndex = 0;
     private final Image[] previewImages = new Image[6]; // 3 hazards + 3 powerups
 
     public SinglePlayerScreen(Main mainApp) {
@@ -52,9 +66,8 @@ public class SinglePlayerScreen {
 
         bgImage = UIUtils.ImageCache.get("assets/images/MainBackground.jpg");
 
-        String[] colors = {"orange", "blue", "green", "red"};
-        for (int i = 0; i < colors.length; i++) {
-            doughImages[i] = UIUtils.ImageCache.get("assets/images/PlayersDough/" + colors[i] + ".png");
+        for (int i = 0; i < DOUGH_FILES.length; i++) {
+            doughImages[i] = UIUtils.ImageCache.get("assets/images/PlayersDough/" + DOUGH_FILES[i] + ".png");
         }
 
         String[] pvPaths = {
@@ -86,42 +99,34 @@ public class SinglePlayerScreen {
 
         // Title
         Label title = new Label("Single Player Mode");
-        title.setFont(Font.font(UIUtils.MAIN_FONT, 38));
+        title.setFont(FONT_TITLE);
         title.setStyle("-fx-text-fill:" + GOLD + ";");
 
-        Label subtitle = new Label("Milestone 1: Basic Game Logic  •  In Development");
-        subtitle.setFont(Font.font(UIUtils.MAIN_FONT, 18));
-        subtitle.setStyle("-fx-text-fill:" + MUTED + ";");
-        subtitle.setTextAlignment(TextAlignment.CENTER);
-
-        VBox titleBox = new VBox(6, title, subtitle);
+        VBox titleBox = new VBox(6, title);
         titleBox.setAlignment(Pos.CENTER);
 
         // The Tray
         Label trayHeader = new Label("The Tray");
-        trayHeader.setFont(Font.font(UIUtils.MAIN_FONT, 26));
+        trayHeader.setFont(FONT_HEADER);
         trayHeader.setStyle("-fx-text-fill:" + GOLD + ";");
 
-        String[] names = {"Player 1", "Player 2", "Player 3", "Player 4"};
-        HBox slotsRow = new HBox(20);
-        slotsRow.setAlignment(Pos.CENTER);
-        slotsRow.getChildren().add(buildFilledSlot(doughImages[0], names[0]));
-        for (int i = 1; i < 4; i++)
-            slotsRow.getChildren().add(buildEmptySlot(doughImages[i], names[i]));
+        HBox slotRow = new HBox();
+        slotRow.setAlignment(Pos.CENTER);
+        slotRow.getChildren().add(buildFilledSlot("Player 1"));
 
-        VBox trayBox = new VBox(14, trayHeader, slotsRow);
+        VBox trayBox = new VBox(14, trayHeader, slotRow);
         trayBox.setAlignment(Pos.CENTER);
 
         // Buttons
         Button btnPlay = new Button("Play Now");
-        btnPlay.setFont(Font.font(UIUtils.MAIN_FONT, 20));
+        btnPlay.setFont(FONT_BUTTON);
         btnPlay.setStyle(BTN_PRI_N);
         btnPlay.setOnMouseEntered(e -> btnPlay.setStyle(BTN_PRI_H));
         btnPlay.setOnMouseExited (e -> btnPlay.setStyle(BTN_PRI_N));
-        btnPlay.setOnAction(e -> mainApp.showGamePlay());
+        btnPlay.setOnAction(e -> mainApp.showGamePlay(DOUGH_FILES[currentDoughIndex]));
 
         Button btnBack = new Button("Back to Menu");
-        btnBack.setFont(Font.font(UIUtils.MAIN_FONT, 20));
+        btnBack.setFont(FONT_BUTTON);
         btnBack.setStyle(BTN_SEC_N);
         btnBack.setOnMouseEntered(e -> btnBack.setStyle(BTN_SEC_H));
         btnBack.setOnMouseExited (e -> btnBack.setStyle(BTN_SEC_N));
@@ -136,49 +141,47 @@ public class SinglePlayerScreen {
         root.getChildren().add(content);
     }
 
-    private StackPane buildFilledSlot(Image img, String playerName) {
+    private StackPane buildFilledSlot(String playerName) {
         StackPane slot = new StackPane();
-        slot.setPrefSize(130, 160);
+        slot.setPrefSize(260, 260);
         slot.setStyle(
-            "-fx-background-color:rgba(61,40,46,0.75);-fx-background-radius:10;" +
-            "-fx-border-color:#b89664;-fx-border-width:2;-fx-border-radius:10;"
+            "-fx-background-color:rgba(61,40,46,0.75);-fx-background-radius:16;" +
+            "-fx-border-color:#b89664;-fx-border-width:4;-fx-border-radius:16;"
         );
         ImageView icon = new ImageView();
-        if (img != null && !img.isError()) icon.setImage(img);
-        icon.setFitWidth(64); icon.setFitHeight(64); icon.setPreserveRatio(true);
+        icon.setImage(doughImages[currentDoughIndex]);
+        icon.setFitWidth(140); icon.setFitHeight(140); icon.setPreserveRatio(true);
+
+        Button leftBtn = new Button("<");
+        leftBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #b89664; -fx-font-size: 28px; -fx-font-weight: bold; -fx-cursor: hand;");
+        leftBtn.setOnAction(e -> {
+            currentDoughIndex = (currentDoughIndex - 1 + DOUGH_FILES.length) % DOUGH_FILES.length;
+            icon.setImage(doughImages[currentDoughIndex]);
+        });
+
+        Button rightBtn = new Button(">");
+        rightBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #b89664; -fx-font-size: 28px; -fx-font-weight: bold; -fx-cursor: hand;");
+        rightBtn.setOnAction(e -> {
+            currentDoughIndex = (currentDoughIndex + 1) % DOUGH_FILES.length;
+            icon.setImage(doughImages[currentDoughIndex]);
+        });
+
+        HBox imageRow = new HBox(5, leftBtn, icon, rightBtn);
+        imageRow.setAlignment(Pos.CENTER);
+
         Label name = new Label(playerName);
-        name.setFont(Font.font(UIUtils.MAIN_FONT, 15));
+        name.setFont(FONT_HEADER);
         name.setStyle("-fx-text-fill:#f5e6c8;");
-        VBox inner = new VBox(8, icon, name);
+        VBox inner = new VBox(20, imageRow, name);
         inner.setAlignment(Pos.CENTER);
         slot.getChildren().add(inner);
         return slot;
     }
 
-    private StackPane buildEmptySlot(Image img, String label) {
-        StackPane slot = new StackPane();
-        slot.setPrefSize(130, 160);
-        slot.setStyle(
-            "-fx-background-color:rgba(20,15,18,0.55);-fx-background-radius:10;" +
-            "-fx-border-color:#555555;-fx-border-width:2;-fx-border-radius:10;" +
-            "-fx-border-style:dashed;"
-        );
-        ImageView icon = new ImageView();
-        if (img != null && !img.isError()) icon.setImage(img);
-        icon.setFitWidth(64); icon.setFitHeight(64); icon.setPreserveRatio(true);
-        icon.setOpacity(0.3);
-        Label waiting = new Label("Waiting...");
-        waiting.setFont(Font.font(UIUtils.MAIN_FONT, 14));
-        waiting.setStyle("-fx-text-fill:#888888;");
-        VBox inner = new VBox(8, icon, waiting);
-        inner.setAlignment(Pos.CENTER);
-        slot.getChildren().add(inner);
-        return slot;
-    }
 
     private VBox buildPreviewStrip() {
         Label header = new Label("What's in the kitchen:");
-        header.setFont(Font.font(UIUtils.MAIN_FONT, 16));
+        header.setFont(FONT_SMALL);
         header.setStyle("-fx-text-fill:#888888;");
         HBox iconRow = new HBox(18);
         iconRow.setAlignment(Pos.CENTER);

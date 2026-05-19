@@ -5,12 +5,8 @@ import javafx.scene.image.Image;
 /**
  * H3 — Rotten Egg Reverse Controls Hazard (Emman).
  *
- * Inverts all player input for 3 seconds. The inversion is applied in
- * GamePlayScreen to the unified targetDir (the single point consumed by the
- * direction-smoothing pipeline) so it works correctly regardless of whether
- * the player is using WASD or mouse steering.
+ * Inverts all player input for 3 seconds. 
  *
- * Sprite: assets/images/hazard/RottenEgg-Hazard.png
  */
 public class ReverseControlsHazard extends PickupEntity {
 

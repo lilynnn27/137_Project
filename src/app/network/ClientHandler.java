@@ -5,41 +5,22 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-/**
- * ClientHandler — one instance per connected player, running on the server.
- *
- * Each handler lives on its own thread and owns the I/O streams for exactly
- * one client socket. It:
- *   1. Reads incoming {@link NetworkMessage}s from its client.
- *   2. Forwards them to {@link GameServer} for processing.
- *   3. Provides a {@link #send(NetworkMessage)} method so the server can push
- *      messages back to this specific client.
- *
- * The handler is created as soon as the socket is accepted; the server assigns
- * it a playerId only after a valid PLAYER_JOIN message arrives.
- */
 public class ClientHandler implements Runnable {
-
-    // ------------------------------------------------------------------
-    // Fields
-    // ------------------------------------------------------------------
-
-    private final Socket       socket;
-    private final GameServer   server;
+    private final Socket socket;
+    private final GameServer server;
     private ObjectOutputStream out;
     private ObjectInputStream  in;
 
-    /** Assigned by GameServer after PLAYER_JOIN is received. -1 = not yet set. */
-    private int    playerId   = -1;
+    // Assigned by GameServer after PLAYER_JOIN is received.
+    private int playerId = -1;
     private String playerName = "Unknown";
 
-    /** False once the socket closes or a fatal error occurs. */
+    // False once the socket closes or a fatal error occurs. 
     private volatile boolean running = true;
 
     // ------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------
-
     public ClientHandler(Socket socket, GameServer server) {
         this.socket = socket;
         this.server = server;
@@ -48,16 +29,12 @@ public class ClientHandler implements Runnable {
     // ------------------------------------------------------------------
     // Runnable — message read loop
     // ------------------------------------------------------------------
-
     @Override
     public void run() {
         try {
-            // ObjectOutputStream must be flushed BEFORE creating the matching
-            // ObjectInputStream on either side, otherwise both ends deadlock
-            // waiting for the stream header.
             out = new ObjectOutputStream(socket.getOutputStream());
             out.flush();
-            in  = new ObjectInputStream(socket.getInputStream());
+            in = new ObjectInputStream(socket.getInputStream());
 
             System.out.println("[Server] Client connected: " + socket.getInetAddress());
 
@@ -97,6 +74,9 @@ public class ClientHandler implements Runnable {
             case PING -> {
                 send(NetworkMessage.pong());
             }
+            case CHAT -> {
+                server.onChat(this, msg);
+            }
             default -> {
                 System.out.println("[Server] Unexpected message type from client " + playerId + ": " + msg.type);
             }
@@ -106,12 +86,6 @@ public class ClientHandler implements Runnable {
     // ------------------------------------------------------------------
     // Outbound — called by GameServer on any thread
     // ------------------------------------------------------------------
-
-    /**
-     * Sends a message to this client.
-     * Thread-safe: synchronized on {@code out} so concurrent server broadcasts
-     * don't interleave bytes.
-     */
     public synchronized void send(NetworkMessage msg) {
         if (!running || out == null) return;
         try {
@@ -131,11 +105,10 @@ public class ClientHandler implements Runnable {
     // Lifecycle
     // ------------------------------------------------------------------
 
-    /** Cleanly closes streams/socket and notifies the server. */
     public void disconnect() {
         if (!running) return; // already disconnected
         running = false;
-        try { if (in  != null) in.close();  } catch (IOException ignored) {}
+        try { if (in != null) in.close(); } catch (IOException ignored) {}
         try { if (out != null) out.close(); } catch (IOException ignored) {}
         try { socket.close(); }              catch (IOException ignored) {}
         server.onClientDisconnected(this);
@@ -144,7 +117,6 @@ public class ClientHandler implements Runnable {
     // ------------------------------------------------------------------
     // Getters / setters (called by GameServer)
     // ------------------------------------------------------------------
-
     public int    getPlayerId()   { return playerId; }
     public String getPlayerName() { return playerName; }
 

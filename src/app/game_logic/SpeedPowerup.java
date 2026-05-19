@@ -6,7 +6,6 @@ import javafx.scene.image.Image;
  * P1 — Oil Speed Powerup
  *
  * Increases the contacting player's movement speed by 1.5x for 5 seconds.
- * Sprite: assets/images/powerup/Oil-Powerup.png
  */
 public class SpeedPowerup extends PickupEntity {
 

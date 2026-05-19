@@ -1,0 +1,57 @@
+.nav-btn {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-padding: 8 16 8 16;
+    -fx-cursor: hand;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-text-fill: #5D4037;
+}
+
+.nav-btn:hover {
+    -fx-text-fill: #ff9900;
+}
+
+.nav-btn:pressed {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 8 4 8 4;
+    -fx-text-fill: #ff9900;
+}
+
+.nav-btn:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+}
+
+/* ── Scrollbar styling ── */
+.scroll-bar:vertical {
+    -fx-background-color: #2a1608;
+    -fx-background-radius: 6;
+    -fx-pref-width: 8px;
+}
+
+.scroll-bar:vertical .thumb {
+    -fx-background-color: #7a5533;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar:vertical .track {
+    -fx-background-color: #2a1608;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar:vertical .increment-button,
+.scroll-bar:vertical .decrement-button {
+    -fx-background-color: #2a1608;
+    -fx-padding: 0;
+    -fx-pref-height: 0;
+}
+
+.scroll-bar:vertical .increment-arrow,
+.scroll-bar:vertical .decrement-arrow {
+    -fx-background-color: transparent;
+    -fx-shape: " ";
+    -fx-padding: 0;
+}
